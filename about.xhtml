@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <title>about:b2g-installer</title>
+    <meta content="width=800" name="viewport"/>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+    <script src="chrome://b2g-installer/content/about.js" type="text/javascript;version=1.8"></script>
+    <link rel="stylesheet" type="text/css" href="chrome://b2g-installer/content/about.css"/>
+  </head>
+  <body>
+    <h1>B2G Installer</h1>
+    <h2>Device image</h2>
+      <p>Select a blob-free dist image:<input type="file" id="blobfree"></input></p>
+      <p><progress id="blobs-pulled" value="0" max="100"></progress><span id="current-blob"></span></p>
+      <h3>Flashing options</h3>
+      <ul id="flashing-options">
+        <li>
+	  <input id="keep-b2g-data" type="checkbox" checked="checked" />
+	  <label for="keep-b2g-data">Keep my B2G data</label>
+	</li>
+      </ul>
+    <h2>ADB devices</h2>
+      <ul id="adb-devices">
+      </ul>
+    <h2>Fastboot devices</h2>
+      <ul id="fastboot-devices">
+      </ul>
+  </body>
+</html>
