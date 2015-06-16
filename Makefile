@@ -1,5 +1,5 @@
-FILES=about.css about.js about.xhtml bootstrap.js imaging_tools.js main.js subprocess.js chrome.manifest
-ADDON_VERSION=0.1
+FILES=about.css about.js about.xhtml bootstrap.js imaging_tools.js main.js subprocess.js chrome.manifest Fira
+ADDON_VERSION=0.2
 XPI_NAME=b2g-installer-$(ADDON_VERSION)
 
 XPIS = $(XPI_NAME)-linux.xpi $(XPI_NAME)-linux64.xpi $(XPI_NAME)-mac64.xpi

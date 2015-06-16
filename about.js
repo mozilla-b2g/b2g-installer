@@ -495,190 +495,6 @@ function checkDeviceIsB2G(device) {
   });
 }
 
-/** Let's do everything:
-  *  - First extract the blobfree distribution zip
-  *  - make sure everything is here
-  *  - extract the blobfree content package
-  *  - compute blobs map
-  *  - extract recovery fstab infos
-  *  - make sure device is plugged in and supported
-  *  - get all the needed blobs
-  *  - copy them to the extracted content directory
-  *  - build file system images
-  *  - reboot device to fastboot mode and poll it
-  *  - once detected, fastboot flash all partitions
-  **/
-function dealWithBlobFree(obj) {
-  return new Promise((resolve, reject) => {
-    console.log("Extracting blob free distribution:", obj.files[0]);
-
-    let rootDirImage, blobsMap, deviceFstab, adbDevice, fastbootDevice, runsB2G;
-
-    extractBlobFreeDistribution(obj.files[0]).then(root => {
-      rootDirImage = root;
-
-      console.log("Extracting blob free content:", rootDirImage);
-
-      return extractBlobFreeContent(rootDirImage);
-    }).then(result => {
-      if (!result) {
-        console.error("Error extracting content");
-        return Promise.reject();
-      }
-
-      console.log("Blob free distribution extracted.");
-
-      return readBlobsMap(rootDirImage);
-    }).then(map => {
-      blobsMap = map;
-
-      console.log("Blob map extracted, getting fstab");
-
-      return readRecoveryFstab(rootDirImage);
-    }).then(fstab => {
-      deviceFstab = fstab;
-
-      console.log("Recovery fstab read", deviceFstab , ", enumerating devices");
-
-      return getAllDevices(false);
-    }).then(device => {
-      adbDevice = device;
-
-      console.log("Devices enumerating, forcing into root mode");
-
-      return adbDevice.summonRoot();
-    }).then(() => {
-      console.log("Waiting for adb root to finish ...");
-
-      // Avoid races conditions with adb root
-      return new Promise((resolve, reject) => {
-        console.debug("Starting 5 secs countdown ...");
-        setTimeout(function() {
-          console.debug("Finished 5 secs countdown  !");
-          resolve();
-        }, 5000);
-      });
-    }).then(() => {
-      console.log("Device forced into root mode, checking B2G existence");
-
-      return checkDeviceIsB2G(adbDevice);
-    }).then(isB2G => {
-      runsB2G = isB2G;
-
-      console.log("B2G existence checked, pulling all blobs for", adbDevice);
-
-      return getBlobs(adbDevice, rootDirImage, blobsMap);
-    }).then(() => {
-      console.log("Got blobs map", blobsMap, "injecting them");
-
-      return injectBlobs(rootDirImage, blobsMap);
-    }).then(injected => {
-      console.log("Injected blobs", injected);
-
-      let toBuild = [
-        buildBootImg(deviceFstab),
-        buildRecoveryImg(deviceFstab),
-        buildSystemImg(deviceFstab)
-      ];
-
-      let keepMyB2GData = document.getElementById("keep-b2g-data").checked;
-
-      console.debug("Does device runs B2G already?", runsB2G);
-      console.debug("Does the users wants to keep data?", keepMyB2GData);
-
-      // We need to flash the userdata partition if:
-      // - we are coming from android
-      // - the user asks to do so
-      if (!runsB2G || (runsB2G && !keepMyB2GData)) {
-        console.debug("Adding data partition to the build and flash list ...");
-        toBuild.push(buildDataImg(deviceFstab));
-      } else {
-        console.debug("Removing data partition from build and flash list!");
-        delete deviceFstab["data.img"];
-      }
-
-      return Promise.all(toBuild);
-    }).then(results => {
-      console.debug("All pending builds finished:", results);
-
-      // Starting fastboot polling and rebooting device into
-      // fastboot mode
-      Devices.emit("fastboot-start-polling");
-
-      return adbDevice.rebootBootloader();
-    }).catch(reason => {
-      console.error("rebootBootloader:", reason);
-      reject();
-    }).then(() => {
-      console.debug("Device rebooting into in fastboot mode now.");
-
-      // Avoid races conditions with adb reboot
-      return new Promise((resolve, reject) => {
-        console.debug("Starting 5 secs countdown ...");
-        setTimeout(function() {
-          console.debug("Finished 5 secs countdown  !");
-          resolve();
-        }, 5000);
-      });
-    }).then(() => {
-      console.debug("Enumerating fastboot devices");
-
-      return getAllDevices(false);
-    }).then(fdevice => {
-      fastbootDevice = fdevice;
-
-      console.log("Devices enumerated, MUST be fastboot", fastbootDevice);
-
-      if (!fastbootDevice.type === "fastboot") {
-        console.error("We should have been into fastboot mode :(");
-        reject();
-      }
-
-      Devices.emit("fastboot-stop-polling");
-
-      return new Promise((resolve, reject) => {
-        // Enumerating all fstab partitions we can flash
-        // and doing the flash sequentially
-        let list = Object.keys(deviceFstab);
-        let currentImage = 0;
-        let flashNextImage = function(cb) {
-          if (currentImage >= list.length) {
-            cb && cb();
-            return;
-          }
-
-          let fstabEntry = deviceFstab[list[currentImage]];
-          console.debug("Using", fstabEntry, "from", list[currentImage]);
-
-          currentImage++;
-          fastbootDevice.flash(fstabEntry.partition, fstabEntry.imageFile, fastbootDevice.id)
-            .then(res => {
-              console.debug("Flash for", fstabEntry, "returned", res);
-              flashNextImage(cb);
-            }).catch(reason => {
-              flashNextImage(cb);
-            });
-        };
-
-        flashNextImage(function() {
-          console.log("All partitions should have been flashed now");
-          resolve();
-        });
-      });
-    }).catch(reason => {
-      console.error("getAllDevices():", reason);
-      reject();
-    }).then(() => {
-      console.log("Rebooting from Fastboot to System");
-
-      // Everything should be good now, rebooting device!
-      return fastbootDevice.reboot(fastbootDevice.id);
-    }).then(() => {
-      console.log("Device should be booting B2G now");
-      resolve();
-    });
-  });
-}
 
 /**
  * Extracting the main zip file which is the blobfree distribution for a device.
@@ -771,26 +587,23 @@ function updateProgressValue(current, max, blobName) {
   document.getElementById("current-blob").textContent = blobName;
 }
 
+function updateFlashProgressValue(current, max) {
+  let prcent  = ((current * 1.0) / max) * 100;
+  document.getElementById("images-flashed").value = prcent;
+}
+
 function addNode(p, id, content) {
-  let node = document.createElement("li");
-  node.id = id;
-  node.textContent = content || id;
-  p.appendChild(node);
-  return node;
+  let text = content || id;
+  document.querySelector('#device h2').textContent = "Device - " + text;
 }
 
 function delNode(id) {
-  let node = document.getElementById(id);
-  if (!node) {
-    return;
-  }
-
-  node.parentNode.removeChild(node);
+  let text = content || id;
+  document.querySelector('#device h2').textContent = 'Device';
 }
 
 function addAdbNode(id, name, cb) {
-  let adbRoot = document.getElementById("adb-devices");
-  let adbNode = addNode(adbRoot, id, name);
+  let adbNode = addNode(id, name);
 }
 
 function delAdbNode(id) {
@@ -798,8 +611,7 @@ function delAdbNode(id) {
 }
 
 function addFastbootNode(id, product, cb) {
-  let fastbootRoot = document.getElementById("fastboot-devices");
-  let fastbootNode = addNode(fastbootRoot, id, product);
+  let fastbootNode = addNode(id, product);
 }
 
 function delFastbootNode(id) {
@@ -940,6 +752,11 @@ function isSupportedDevice(device) {
 function getAllDevices(triggerHandlers) {
   return new Promise((resolve, reject) => {
     let devices = Devices.available();
+    if (!devices.length) {
+      reject();
+      return;
+    }
+
     for (let d in devices) {
       let name = devices[d];
       let device = Devices._devices[name];
@@ -964,14 +781,303 @@ function getAllDevices(triggerHandlers) {
   });
 }
 
+/** Let's do some things:
+  *  - First extract the blobfree distribution zip
+  *  - make sure everything is here
+  *  - extract the blobfree content package
+  *  - compute blobs map
+  *  - extract recovery fstab infos
+  */
+let distributionContext = null;
+function distributionStep(obj, evt) {
+  console.log("Extracting blob free distribution:", obj.files[0]);
+
+  document.getElementById("pick-distribution").dataset.disabled = true;
+
+  let domStep = document.getElementById("distribution");
+  domStep.classList.add("loading");
+
+  let rootDirImage, blobsMap, deviceFstab;
+
+  extractBlobFreeDistribution(obj.files[0]).then(root => {
+    rootDirImage = root;
+
+    console.log("Extracting blob free content:", rootDirImage);
+
+    return extractBlobFreeContent(rootDirImage);
+  }).then(result => {
+    if (!result) {
+      console.error("Error extracting content");
+      return Promise.reject();
+    }
+
+    console.log("Blob free distribution extracted.");
+
+    return readBlobsMap(rootDirImage);
+  }).then(map => {
+    blobsMap = map;
+
+    console.log("Blob map extracted, getting fstab");
+
+    return readRecoveryFstab(rootDirImage);
+  }).then(fstab => {
+    deviceFstab = fstab;
+
+    console.log("Recovery fstab read", deviceFstab);
+
+  }).then(() => {
+    distributionContext = {
+      rootDirImage: rootDirImage,
+      blobsMap: blobsMap,
+      deviceFstab: deviceFstab
+    };
+  }).catch((error) => {
+    console.error(error);
+    distributionContext = null;
+  }).then(function() {
+    domStep.classList.remove("loading");
+    window.dispatchEvent(new CustomEvent("distributionchanged"));
+  });
+}
+
+/** Let's do some things:
+  *  - make sure device is plugged in and supported
+  *  - get all the needed blobs
+  *  - copy them to the extracted content directory
+  */
+let deviceContext = null;
+function deviceStep(evt) {
+  evt.target.dataset.disabled = true;
+
+  let domStep = document.getElementById("device")
+  domStep.classList.add("loading");
+
+  let adbDevice, runsB2G;
+  getAllDevices(false).then((device) => {
+    adbDevice = device;
+    return adbDevice.summonRoot();
+  }).then(() => {
+    console.log("Waiting for adb root to finish ...");
+
+    // Avoid races conditions with adb root
+    return new Promise((resolve, reject) => {
+      console.debug("Starting 5 secs countdown ...");
+      setTimeout(function() {
+        console.debug("Finished 5 secs countdown  !");
+        resolve();
+      }, 5000);
+    });
+  }).then(() => {
+    console.log("Device forced into root mode, checking B2G existence");
+
+    return checkDeviceIsB2G(adbDevice);
+  }).then(isB2G => {
+    runsB2G = isB2G;
+
+    console.log("B2G existence checked, pulling all blobs for", adbDevice);
+
+    return getBlobs(adbDevice, distributionContext.rootDirImage, distributionContext.blobsMap);
+  }).then(() => {
+    deviceContext = {
+      adbDevice: adbDevice,
+      runsB2G: runsB2G
+    };
+  }).catch((error) => {
+    console.error(error);
+    deviceContext = null;
+  }).then(function() {
+    domStep.classList.remove("loading");
+    window.dispatchEvent(new CustomEvent("devicechanged"));
+  });
+}
+
+let imageContext = null;
+function imageStep(evt) {
+  evt.target.dataset.disabled = true;
+
+  let domStep = document.getElementById("image");
+  domStep.classList.add("loading");
+
+  let deviceFstab = distributionContext.deviceFstab;
+  let runsB2G = deviceContext.runsB2G;
+
+  injectBlobs(distributionContext.rootDirImage, distributionContext.blobsMap)
+  .then(injected => {
+    console.log("Injected blobs", injected);
+
+    let toBuild = [
+      buildBootImg(deviceFstab),
+      buildRecoveryImg(deviceFstab),
+      buildSystemImg(deviceFstab)
+    ];
+
+    let keepMyB2GData = document.getElementById("keep-b2g-data").checked;
+
+    console.debug("Does device runs B2G already?", runsB2G);
+    console.debug("Does the users wants to keep data?", keepMyB2GData);
+
+    // We need to flash the userdata partition if:
+    // - we are coming from android
+    // - the user asks to do so
+    if (!runsB2G || (runsB2G && !keepMyB2GData)) {
+      console.debug("Adding data partition to the build and flash list ...");
+      toBuild.push(buildDataImg(deviceFstab));
+    } else {
+      console.debug("Removing data partition from build and flash list!");
+      delete deviceFstab["data.img"];
+    }
+
+    return Promise.all(toBuild);
+  }).then(results => {
+    imageContext = {
+      built: results
+    };
+  }).catch((error) => {
+    console.error(error);
+    imageContext = null;
+  }).then(function() {
+    domStep.classList.remove("loading");
+    window.dispatchEvent(new CustomEvent("imagechanged"));
+  });
+}
+
+/** Let's do some things:
+  *  - reboot device to fastboot mode and poll it
+  *  - once detected, fastboot flash all partitions
+  **/
+function flashStep(evt) {
+  evt.target.dataset.disabled = true;
+
+  let domStep = document.getElementById("installation");
+  domStep.classList.add("loading");
+
+  let fastbootDevice;
+  let adbDevice = deviceContext.adbDevice;
+  let deviceFstab = distributionContext.deviceFstab;
+
+  Devices.emit("fastboot-start-polling");
+  adbDevice.rebootBootloader().then(() => {
+    console.debug("Device rebooting into in fastboot mode now.");
+
+    // Avoid races conditions with adb reboot
+    return new Promise((resolve, reject) => {
+      console.debug("Starting 5 secs countdown ...");
+      setTimeout(function() {
+        console.debug("Finished 5 secs countdown  !");
+        resolve();
+      }, 5000);
+    });
+  }).then(() => {
+    console.debug("Enumerating fastboot devices");
+
+    return getAllDevices(false);
+  }).then((fdevice) => {
+    console.log("After getAllDevice");
+    fastbootDevice = fdevice;
+
+    console.log("Devices enumerated, MUST be fastboot", fastbootDevice);
+
+    if (!fastbootDevice.type === "fastboot") {
+      console.error("We should have been into fastboot mode :(");
+      return Promise.reject();
+    }
+
+    Devices.emit("fastboot-stop-polling");
+    updateFlashProgressValue(1, 100);
+
+    return new Promise((resolve, reject) => {
+      // Enumerating all fstab partitions we can flash
+      // and doing the flash sequentially
+      let list = Object.keys(deviceFstab);
+      let currentImage = 0;
+      let flashNextImage = function(cb) {
+        if (currentImage >= list.length) {
+          cb && cb();
+          return;
+        }
+
+        let fstabEntry = deviceFstab[list[currentImage]];
+        console.debug("Using", fstabEntry, "from", list[currentImage]);
+
+        currentImage++;
+        updateFlashProgressValue(currentImage, list.length);
+
+        fastbootDevice.flash(fstabEntry.partition, fstabEntry.imageFile, fastbootDevice.id)
+          .then(res => {
+            console.debug("Flash for", fstabEntry, "returned", res);
+            flashNextImage(cb);
+          }).catch(reason => {
+            flashNextImage(cb);
+          });
+      };
+
+      flashNextImage(function() {
+        console.log("All partitions should have been flashed now");
+        resolve();
+      });
+    });
+  }).catch(reason => {
+    console.error("getAllDevices():", reason);
+    return Promise.reject();
+  }).then(() => {
+    console.log("Rebooting from Fastboot to System");
+
+    // Everything should be good now, rebooting device!
+    return fastbootDevice.reboot(fastbootDevice.id);
+  }).then(() => {
+    console.log("Device should be booting B2G now");
+    domStep.classList.add("done");
+  }).catch((error) => {
+    alert(":/ -- sad panda");
+  }).then(function() {
+    domStep.classList.remove("loading");
+  });
+}
+
 addEventListener("load", function load() {
   removeEventListener("load", load, false);
 
-  Devices.on("register", getAllDevices);
-  Devices.on("unregister", getAllDevices);
+  Devices.on("register", getAllDevices.bind(null, true));
+  Devices.on("unregister", getAllDevices.bind(null, true));
 
   let blobsFreeImage = document.getElementById("blobfree");
-  blobsFreeImage.addEventListener("change", dealWithBlobFree.bind(null, blobsFreeImage));
+  blobsFreeImage.addEventListener("change", distributionStep.bind(null, blobsFreeImage));
+
+  let pullBlobs = document.getElementById("pull-blobs");
+  pullBlobs.addEventListener("click", deviceStep);
+
+  let makeImage = document.getElementById("make-image");
+  makeImage.addEventListener("click", imageStep);
+
+  let flashImage = document.getElementById("flash-image");
+  flashImage.addEventListener("click", flashStep);
 }, false);
+
+addEventListener("distributionchanged", function distribChanged() {
+  console.log("Distribution changed!");
+
+  getAllDevices(true);
+
+  let distributionReady = !!distributionContext;
+  document.getElementById("distribution").classList.toggle("done", distributionReady);
+  document.getElementById("pull-blobs").dataset.disabled = !distributionReady;
+});
+
+addEventListener("devicechanged", function distribChanged() {
+  console.log("Device changed!");
+
+  let deviceReady = !!deviceContext;
+  document.getElementById("device").classList.toggle("done", deviceReady);
+  document.getElementById("flashing-options").classList.toggle("hidden", !deviceContext.runsB2G);
+  document.getElementById("make-image").dataset.disabled = !deviceReady;
+});
+
+addEventListener("imagechanged", function distribChanged() {
+  console.log("Image changed!");
+
+  let imageReady = !!imageContext;
+  document.getElementById("image").classList.toggle("done", imageReady);
+  document.getElementById("flash-image").dataset.disabled = !imageReady;
+});
 
 /* vim: set et ts=2 sw=2 : */
