@@ -1,29 +1,50 @@
 <?xml version="1.0"?>
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
-    <title>about:b2g-installer</title>
+    <title>Ignite Flash Tool</title>
     <meta content="width=800" name="viewport"/>
     <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
     <script src="chrome://b2g-installer/content/about.js" type="text/javascript;version=1.8"></script>
     <link rel="stylesheet" type="text/css" href="chrome://b2g-installer/content/about.css"/>
   </head>
   <body>
-    <h1>B2G Installer</h1>
-    <h2>Device image</h2>
-      <p>Select a blob-free dist image:<input type="file" id="blobfree"></input></p>
-      <p><progress id="blobs-pulled" value="0" max="100"></progress><span id="current-blob"></span></p>
-      <h3>Flashing options</h3>
-      <ul id="flashing-options">
-        <li>
-	  <input id="keep-b2g-data" type="checkbox" checked="checked" />
-	  <label for="keep-b2g-data">Keep my B2G data</label>
-	</li>
-      </ul>
-    <h2>ADB devices</h2>
-      <ul id="adb-devices">
-      </ul>
-    <h2>Fastboot devices</h2>
-      <ul id="fastboot-devices">
-      </ul>
+    <h1>Ignite Flash Tool</h1>
+    <div class="step twin">
+      <section id="distribution">
+        <h2>Distribution</h2>
+        <label id="pick-distribution" for="blobfree" class="action">
+          Pick a distribution archive
+        </label>
+
+        <input id="blobfree" type="file" style="visibility: hidden"></input>
+      </section>
+      <section id="device">
+        <h2>Device</h2>
+        <label id="pull-blobs" data-disabled="true" class="action">Pull blobs from device</label>
+        <p>
+          <progress id="blobs-pulled" value="0" max="100"></progress>
+          <pre id="current-blob"></pre>
+        </p>
+      </section>
+    </div>
+    <div class="step">
+      <section id="image">
+        <h2>Image</h2>
+        <div id="flashing-options" class="hidden">
+          <input id="keep-b2g-data" type="checkbox" checked="checked" />
+          <label for="keep-b2g-data">Keep my B2G data</label>
+        </div>
+        <label id="make-image" data-disabled="true" class="action">Make image</label>
+      </section>
+    </div>
+    <div class="step">
+      <section id="installation">
+        <h2>Installation</h2>
+        <label id="flash-image" data-disabled="true" class="action">Flash image on device</label>
+        <p>
+          <progress id="images-flashed" value="0" max="100"></progress>
+        </p>
+      </section>
+    </div>
   </body>
 </html>
