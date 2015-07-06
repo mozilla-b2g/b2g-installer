@@ -1037,6 +1037,10 @@ function flashStep(evt) {
 addEventListener("load", function load() {
   removeEventListener("load", load, false);
 
+  console.debug("Received load event");
+
+  Devices.emit("adb-start-polling");
+
   Devices.on("register", getAllDevices.bind(null, true));
   Devices.on("unregister", getAllDevices.bind(null, true));
 
@@ -1051,6 +1055,14 @@ addEventListener("load", function load() {
 
   let flashImage = document.getElementById("flash-image");
   flashImage.addEventListener("click", flashStep);
+}, false);
+
+addEventListener("unload", function unload() {
+  removeEventListener("unload", unload, false);
+
+  console.debug("Received unload event");
+
+  Devices.emit("adb-stop-polling");
 }, false);
 
 addEventListener("distributionchanged", function distribChanged() {
