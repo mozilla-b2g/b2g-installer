@@ -6,140 +6,185 @@ html {
 }
 
 body {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  width: 800px;
-  margin: auto;
   color: #5E5E5E;
-  font-weight: 200;
+  font-weight: 400;
 }
 
 h1 {
   font-size: 2em;
-  font-weight: 400;
-  font-style: italic;
-  color: #0194DE;
-  margin: 1em 0;
+  font-weight: 300;
+  text-align: center;
 }
 
 h2 {
-  width: 85%;
-  overflow: hidden;
-
   font-size: 1.4em;
-  font-weight: 300;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-weight: 500;
+  text-align: center;
 }
 
-pre {
+h3 {
+  font-size: 1.2em;
+  font-weight: 300;
+  text-align: center;
+}
+
+h4 {
+  margin: 0;
+}
+
+ul {
+ padding: 0;
+  list-style-type: none;
+}
+
+#wrapper {
+  max-width: 800px;
+  display: flex;
+  overflow: hidden;
+  margin: 0 auto;
+}
+
+#wrapper[data-current-step="connect"] .select,
+#wrapper[data-current-step="connect"] .flash,
+#wrapper[data-current-step="select"] .flash {
+  opacity: .2;
+  pointer-events: none;
+}
+
+.connect, .flash {
+  text-align: center;
+}
+
+#deviceId:empty::before {
+  content: 'No Device Detected';
+}
+
+#deviceId:empty {
+  color: #AAA;
+  font-style: italic;
+  font-weight: 400;
+}
+
+#deviceId:not(:empty) {
+  background: url(checkmark.png) no-repeat left center;
+  background-size: 20px;
+  padding-left: 25px;
+}
+
+.build {
+  display: flex;
+  margin-bottom: 15px;
+}
+
+.description {
+  padding-left: 5px;
+}
+
+.description span {
+  font-size: .8rem;
+}
+
+button {
+  border: 0;
+  background: #7EC14D;
+  color: white;
+  height: 35px;
+  border-radius: 18px;
+  display: block;
+  margin: 0 auto;
+  font-size: .9rem;
+  font-style: italic;
+  padding: 0 10px;
+}
+
+#installBtn {
+  margin-bottom: 10px;
+}
+
+.dialog {
   display: none;
 }
 
-progress {
- width: calc(100% - 2em);
- height: 0.5em;
- border-radius: 1em;
+.dialog > div {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: rgba(255, 255, 255, .75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dialog section {
+  background: #F4F4F4;
+  box-shadow: 1px 1px 2px rgba(0, 0, 0, .3);
+  max-width: 400px;
+  overflow: hidden;
+}
+
+#progressDialog li.done {
+  background: url(checkmark.png) no-repeat right 10px center;
+  background-size: 20px;
+}
+
+#progressDialog li, #progressDialog p {
+  line-height: 1.5rem;
+  padding: 0 1rem;
+}
+
+#additionalProgress {
+  color: #999;
+  min-height: 1.5rem;
+  margin-bottom: 0;
+  padding: 0 1rem;
+  text-align: center;
+  font-size: .8rem;
+  text-overflow: ellipsis;
+  overflow: hidden;
 }
 
 progress::-moz-progress-bar {
-  background: #00caf2;
-  border-radius: 1em;
+  background: repeating-linear-gradient(135deg,
+                                        #00caf2 0px,
+                                        #00caf2 11%,
+                                        #b2f2ff 11%,
+                                        #b2f2ff 22%,
+                                        #a6a6a6 22%,
+                                        #a6a6a6 33%);
 }
 
-progress[value="0"] {
-  visibility: hidden;
-}
-
-.step {
-  display: flex;
-  width: 100%;
-  flex-direction: row;
-  align-items: stretch;
-  flex: 1 0 0;
-  border: 1px #e7e7e7 solid;
-  border-radius: 10px;
-  margin-bottom: 2.5em;
-}
-
-.step.twin {
-  flex: 2 0 0;
-}
-
-section {
+progress {
   position: relative;
+  top: 1px;  /* Weird 1px margin at the bottom */
+  border: 0;
+  height: .4rem;
+  min-width: 300%;
+  animation: moving-backward 1500ms infinite linear;
+}
+
+@keyframes moving-backward {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-33%); }
+}
+
+.dialog {
+  whitespace: wrap;
+}
+
+#confirmDialog section {
+  max-width: 250px;
+}
+
+#confirmDialog p {
+  padding: 0 1rem;
+}
+
+#confirmDialog button {
+  background: white;
   display: block;
-  flex: 1 0 0;
-  padding: 0 0 1em 1em;
-}
-
-section.loading::after {
-  display: block;
-  content: "⚙";
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 1em;
-
-  font-size: 2.2em;
-  text-align: center;
-  line-height: 1em;
-  text-align: center;
-
-  color: #00caf2;
-
-  animation: rotating 1s linear infinite;
-}
-
-@keyframes rotating {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-section.done::after {
-  display: block;
-  font-size: 1.8em;
-  content: "✓";
-  position: absolute;
-  top: 7px;
-  right: 20px;
-  color: #00caf2;
-}
-
-.hidden {
-  display: none;
-}
-
-label.action {
-  display: inline-block;
-  font-family: 'Fira Sans';
-  font-style: italic;
-  font-size: 1.1em;
-  font-weight: 300;
-
-  margin: 0;
-  padding: 0.8em 1em;
-
-  border-radius: 50px;
-  outline: 0;
-
-  background: #f4f4f4;
-
-  color:#4d4d4d;
-
-  box-shadow: inset 0 -1px 0 #d8d8d8, inset 0 1px 0 #eeeeee;
-}
-
-#flashing-options {
-  margin: 1em 0;
-}
-
-label.action[data-disabled="true"] {
-  pointer-events: none;
-  opacity: 0.5;
+  width: 100%;
+  border-radius: 0;
+  color: #0194DE;
 }

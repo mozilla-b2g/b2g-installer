@@ -1,50 +1,64 @@
 <?xml version="1.0"?>
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
-    <title>Ignite Flash Tool</title>
+    <title>Firefox OS Installer</title>
     <meta content="width=800" name="viewport"/>
     <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
     <script src="chrome://b2g-installer/content/about.js" type="text/javascript;version=1.8"></script>
     <link rel="stylesheet" type="text/css" href="chrome://b2g-installer/content/about.css"/>
   </head>
   <body>
-    <h1>Ignite Flash Tool</h1>
-    <div class="step twin">
-      <section id="distribution">
-        <h2>Distribution</h2>
-        <label id="pick-distribution" for="blobfree" class="action">
-          Pick a distribution archive
-        </label>
 
-        <input id="blobfree" type="file" style="visibility: hidden"></input>
+    <h1>Firefox OS Installer</h1>
+
+    <div id="wrapper" data-current-step="connect">
+
+      <section class="connect">
+        <h2>Connect</h2>
+        <h3>Plug in the device you want to install Firefox OS on</h3>
+        <span id="deviceId"></span>
       </section>
-      <section id="device">
-        <h2>Device</h2>
-        <label id="pull-blobs" data-disabled="true" class="action">Pull blobs from device</label>
-        <p>
-          <progress id="blobs-pulled" value="0" max="100"></progress>
-          <pre id="current-blob"></pre>
-        </p>
+
+      <section class="select">
+        <h2>Select</h2>
+        <h3>Select the build you would like to flash on your device</h3>
+        <ul id="devices"></ul>
+        <input id="userBuild" type="file" value="Upload your own build" />
       </section>
+
+      <section class="flash">
+        <h2>Flash</h2>
+        <h3>You are now ready to flash Firefox OS on your device</h3>
+        <button id="installBtn">Flash Device</button>
+        <label>
+          <input type="checkbox" checked="checked" id="keep-b2g-data" />
+          Keep your data
+        </label>
+      </section>
+
     </div>
-    <div class="step">
-      <section id="image">
-        <h2>Image</h2>
-        <div id="flashing-options" class="hidden">
-          <input id="keep-b2g-data" type="checkbox" checked="checked" />
-          <label for="keep-b2g-data">Keep my B2G data</label>
-        </div>
-        <label id="make-image" data-disabled="true" class="action">Make image</label>
+
+    <div class="dialog" id="progressDialog"><div>
+      <section>
+        <p>Do not unplug your device while flashing…</p>
+        <ul>
+          <li class="downloading">Downloading Build</li>
+          <li class="extracting">Extracting Build</li>
+          <li class="fetching">Downloading blobs from device</li>
+          <li class="creating">Creating final build</li>
+          <li class="flashing">Flashing build</li>
+        </ul>
+        <div id="additionalProgress"></div>
+        <progress id="progress"></progress>
       </section>
-    </div>
-    <div class="step">
-      <section id="installation">
-        <h2>Installation</h2>
-        <label id="flash-image" data-disabled="true" class="action">Flash image on device</label>
-        <p>
-          <progress id="images-flashed" value="0" max="100"></progress>
-        </p>
+    </div></div>
+
+    <div class="dialog" id="confirmDialog"><div>
+      <section>
+        <p>Your device has succesfully installed Firefox OS!</p>
+        <button>Ok</button>
       </section>
-    </div>
+    </div></div>
+
   </body>
 </html>

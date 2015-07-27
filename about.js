@@ -8,6 +8,7 @@ const Cu = Components.utils;
 const Cc = Components.classes;
 const Ci = Components.interfaces;
 
+Cu.import("resource://gre/modules/NetUtil.jsm");
 Cu.import("resource://gre/modules/FileUtils.jsm");
 Cu.import("resource://gre/modules/ZipUtils.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
@@ -30,6 +31,8 @@ const kContent     = "content";
 const kBlobs       = "blobs";
 const kImages      = "images";
 
+const CONFIG_URL = 'https://raw.githubusercontent.com/mozilla-b2g/b2g-installer-builds/master/builds.json';
+
 const kExpectedBlobFreeContent = [
   kBlobFree, kBlobsInject, kCmdlineFs, kDevicesJson, kDeviceRecovery
 ];
@@ -37,6 +40,40 @@ const kExpectedBlobFreeContent = [
 const kB2GInstallerTmp = FileUtils.getDir("TmpD", ["b2g-installer"], true).path;
 
 let supportedDevices = [];
+let $ = document.querySelectorAll.bind(document);
+
+function xhr(url, opts) {
+  opts = opts || {};
+  return new Promise(function(resolve, reject) {
+
+    let xhr = Cc["@mozilla.org/xmlextras/xmlhttprequest;1"]
+      .createInstance(Ci.nsIXMLHttpRequest);
+
+    let handler = ev => {
+      evf(m => xhr.removeEventListener(m, handler, !1));
+
+      if (xhr.status == 200) {
+        return resolve(xhr.response);
+      }
+      reject(xhr);
+    };
+
+    let evf = f => ['load', 'error', 'abort'].forEach(f);
+    evf(m => xhr.addEventListener(m, handler, false));
+
+    if ('progress' in opts) {
+      xhr.addEventListener('progress', opts.progress, false);
+    }
+
+    xhr.mozBackgroundRequest = true;
+    xhr.open('GET', url, true);
+    xhr.channel.loadFlags |= Ci.nsIRequest.LOAD_ANONYMOUS |
+      Ci.nsIRequest.LOAD_BYPASS_CACHE |
+      Ci.nsIRequest.INHIBIT_PERSISTENT_CACHING;
+    xhr.responseType = ('responseType' in opts) ? opts.responseType : 'json';
+    xhr.send(null);
+  });
+}
 
 /**
  * This will get all blobs from a given device, storing inside a root
@@ -254,22 +291,10 @@ function buildBootImg(fstab) {
  **/
 function buildRecoveryImg(fstab) {
   let fstabPart = fstab["recovery.img"];
-
-  return new Promise((resolve, reject) => {
-    buildRamdisk(fstabPart.sourceDir, OS.Path.join(fstabPart.sourceDir, "initrd.img")).then(result => {
-      console.debug("Recovery.img ramdisk built", result);
-
-      buildBootable(fstabPart.sourceDir, fstabPart.imageFile).then(result => {
-        console.debug("Built everything", result);
-        resolve(true);
-      }).catch(reason => {
-        console.error("buildBootImg", reason);
-        reject(false);
-      });
-    }).catch(reason => {
-      console.error("buildRamdisk", reason);
-      reject(false);
-    });
+  let imgSrc = OS.Path.join(fstabPart.sourceDir, "initrd.img");
+  return buildRamdisk(fstabPart.sourceDir, imgSrc).then(result => {
+    console.debug("Recovery.img ramdisk built", result);
+    return buildBootable(fstabPart.sourceDir, fstabPart.imageFile);
   });
 }
 
@@ -278,7 +303,8 @@ function buildRecoveryImg(fstab) {
  **/
 function buildSystemImg(fstab) {
   let fstabPart = fstab["system.img"];
-  console.debug("Will build system.img from", fstabPart.sourceDir, "to", fstabPart.imageFile);
+  console.debug("Will build system.img from",
+                fstabPart.sourceDir, "to", fstabPart.imageFile);
 
   // it's in device/, not in device/content/SYSTEM/
   let cmdline = new File(OS.Path.join(fstabPart.sourceDir, "..", "..", kCmdlineFs));
@@ -308,7 +334,8 @@ function buildSystemImg(fstab) {
       console.debug("Sending message to main process");
       cpmm.addMessageListener("B2GInstaller:MainProcess:BuildExt4FS:Return",
         function ramdiskMessageListener(reply) {
-          cpmm.removeMessageListener("B2GInstaller:MainProcess:BuildExt4FS:Return", ramdiskMessageListener);
+          cpmm.removeMessageListener("B2GInstaller:MainProcess:BuildExt4FS:Return",
+                                     ramdiskMessageListener);
           console.debug("Received main process reply:", reply);
 
           if (reply.data.res) {
@@ -400,7 +427,7 @@ function injectBlobs(root, map) {
     let fileSrc = new FileUtils.File(OS.Path.join(root, kBlobs, _src));
     let fileTgt = new FileUtils.File(OS.Path.join(root, kContent, _tgt));
 
-    if (!fileTgt.exists()) {
+    if (fileSrc.exists() && !fileTgt.exists()) {
       console.debug("Copying", fileSrc.path, "to", fileTgt.path);
       try {
         fileSrc.copyTo(fileTgt.parent, fileTgt.leafName);
@@ -443,7 +470,6 @@ function readRecoveryFstab(root) {
     fr.addEventListener("loadend", function() {
       let content = fr.result.split("\n");
       console.debug("Recovery fstab:", content);
-      // resolve(fr.result.split("\n"));
 
       let finalFstab = {};
       content.forEach(line => {
@@ -501,15 +527,14 @@ function checkDeviceIsB2G(device) {
  * That's the zip file containing the blobfree content (see below) and all the
  * needed files to check supported devices and how to rebuild and reflash.
  **/
-function extractBlobFreeDistribution(zip) {
-  console.debug("Dealing with", zip);
+function extractBlobFreeDistribution(path) {
+  console.debug("Dealing with", path);
 
   // We expect file name to be like: PRODUCT_DEVICE.XXX.zip
-  let fullPath = zip.mozFullPath;
-  let productDevice = zip.name.split(".")[0];
+  let productDevice = path.split('/').pop().split(".")[0];
   let devicePath = OS.Path.join(kB2GInstallerTmp, productDevice);
 
-  let zipFile = new FileUtils.File(fullPath);
+  let zipFile = new FileUtils.File(path);
   let targetDir = new FileUtils.File(devicePath);
 
   if (!targetDir.exists()) {
@@ -522,7 +547,7 @@ function extractBlobFreeDistribution(zip) {
   }
 
   return new Promise((resolve, reject) => {
-    ZipUtils.extractFilesAsync(zipFile, targetDir).then(result => {
+    return ZipUtils.extractFilesAsync(zipFile, targetDir).then(result => {
       console.debug("Extracted", zipFile, "to", targetDir, "result=", result);
       for (let f of kExpectedBlobFreeContent) {
         let fi = new FileUtils.File(OS.Path.join(devicePath, f));
@@ -538,10 +563,12 @@ function extractBlobFreeDistribution(zip) {
       fr.readAsText(devices);
       console.debug("Reading content of", devices);
       fr.addEventListener("loadend", function() {
-        supportedDevices = JSON.parse(fr.result);
         console.debug("Content of devices:", supportedDevices);
         resolve(devicePath);
       });
+    }).catch(function(e) {
+      // This can fail with permissions errors but is safe to ignore for now
+      resolve();
     });
   });
 }
@@ -582,79 +609,28 @@ function extractBlobFreeContent(devicePath) {
 }
 
 function updateProgressValue(current, max, blobName) {
-  let prcent  = ((current * 1.0) / max) * 100;
-  document.getElementById("blobs-pulled").value = prcent;
-  document.getElementById("current-blob").textContent = blobName;
+  let prcent = ((current * 1.0) / max) * 100;
+  downloadInfo('Pulling: ' + blobName);
 }
 
-function updateFlashProgressValue(current, max) {
-  let prcent  = ((current * 1.0) / max) * 100;
-  document.getElementById("images-flashed").value = prcent;
-}
-
-function addNode(p, id, content) {
-  let text = content || id;
-  document.querySelector('#device h2').textContent = "Device - " + text;
-}
-
-function delNode(id) {
-  let text = content || id;
-  document.querySelector('#device h2').textContent = 'Device';
-}
-
-function addAdbNode(id, name, cb) {
-  let adbNode = addNode(id, name);
-}
-
-function delAdbNode(id) {
-  delNode(id);
-}
-
-function addFastbootNode(id, product, cb) {
-  let fastbootNode = addNode(id, product);
-}
-
-function delFastbootNode(id) {
-  delNode(id);
-}
-
-function inAdbMode(device) {
-  delFastbootNode(device.id);
-  console.debug("[ADB] Device is in ADB mode.");
-
-  device.isRoot().then(isRoot => {
+function waitForAdb(device) {
+  console.debug("[ADB] Device is in ADB mode. 2");
+  return device.isRoot().then(isRoot => {
     if (!isRoot) {
       console.debug("[ADB] Putting device into root mode.");
-      device.summonRoot().then(() => {
-        console.debug("[ADB] Device should be in root mode now.");
-        getAllDevices();
-      }).catch(reason => {
-        console.error("summonRoot():", reason);
-      });
+      return device.summonRoot();
     } else {
-      device.getModel().then(model => {
-        // Add the button to the UI with callback handler for rebooting the
-        // device into fastboot mode
-        addAdbNode(device.id, device.id + "/" + model);
-      }).catch(reason => {
-        console.error("getModel():", reason);
-      });
+      return device.getModel();
     }
-  }).catch(reason => {
-    console.error("isRoot():", reason);
   });
 }
 
-function inFastbootMode(device) {
-  delAdbNode(device.id);
+function waitForFastboot(device) {
   console.debug("[FASTBOOT] Device is in Fastboot mode.");
-  device.getvar("product", device.id).then(product => {
-    device.getvar("serialno", device.id).then(sn => {
-      Devices.emit("fastboot-stop-polling");
-      // Add the button to the UI with callback handler for rebooting the
-      // device from fastboot to the system
-      addFastbootNode(device.id, product + "/" + sn);
-    });
+  return device.getvar("product", device.id).then(product => {
+    return device.getvar("serialno", device.id);
+  }).then(sn => {
+    Devices.emit("fastboot-stop-polling");
   });
 }
 
@@ -664,120 +640,131 @@ function inFastbootMode(device) {
  * supportedDevices array. In each mode we will read a set of variables and we
  * will cross check for each element in this array if we have full match.
  **/
-function isSupportedDevice(device) {
+function isSupportedConfig(device, supportedDevice) {
   return new Promise((resolve, reject) => {
+    if (device.type !== 'adb') {
+      return reject('not_in_adb_mode');
+    }
+
     // Get all ADB fields and check their values
-    if (device.type === "adb") {
-      let allAdbFields = {};
-      device.shell("getprop").then(props => {
-        for (let _line of props.split("\n")) {
-          let line = _line.trim();
-          if (line.length === 0) {
-            continue;
-          }
-
-          let [ key, value ] = line.split(": ");
-          if (key.slice(0, 1) === "[" && key.slice(-1) === "]") {
-            key = key.slice(1, -1);
-            if (value.slice(0, 1) === "[" && value.slice(-1) === "]") {
-              value = value.slice(1, -1);
-              allAdbFields[key] = value;
-            }
-          }
-        }
-
-        let deviceOk = false;
-        for (let supportedDevice of supportedDevices) {
-
-          let anyPropNotGood = false;
-          for (let prop in supportedDevice.adb) {
-            let values = supportedDevice.adb[prop];
-
-            let propVal = allAdbFields[prop];
-            let isOk = (typeof values === "object") ? (values.indexOf(propVal) !== -1) : (values === propVal);
-
-            if (!isOk) {
-              anyPropNotGood = true;
-              break;
-            }
-          }
-
-          if (!anyPropNotGood) {
-            deviceOk = true;
-            resolve(supportedDevice);
-            break;
-          }
-        }
-
-        if (!deviceOk) {
-          reject();
-        }
-      }).catch(reason => {
-        console.error("getprop:", reason);
-        reject();
-      });
-    }
-
-    // For fastboot, we query one by one
-    if (device.type === "fastboot") {
-      for (let supportedDevice of supportedDevices) {
-        let getValues = [];
-
-        for (let varname in supportedDevice.fastboot) {
-          let values = supportedDevice.fastboot[varname];
-          (function(name, expected) {
-            let getValuePromise = device.getvar(name, device.id).then(function onSuccess(varVal) {
-              let isOk = (typeof expected === "object") ? (expected.indexOf(varVal) !== -1) : (expected === varVal);
-              return isOk;
-            });
-            getValues.push(getValuePromise);
-          })(varname, values);
-        }
-
-        Promise.all(getValues).then(values => {
-          if (values.indexOf(false) === -1) {
-            resolve(supportedDevice);
-          }
-        })
+    let allAdbFields = {};
+    device.shell("getprop").then(props => {
+      if (props === '') {
+        return reject('failed to fetch props');
       }
-    }
+      for (let _line of props.split("\n")) {
+        let line = _line.trim();
+        if (line.length === 0) {
+          continue;
+        }
+
+        let [ key, value ] = line.split(": ");
+        if (key.slice(0, 1) === "[" && key.slice(-1) === "]") {
+          key = key.slice(1, -1);
+          if (value.slice(0, 1) === "[" && value.slice(-1) === "]") {
+            value = value.slice(1, -1);
+            allAdbFields[key] = value;
+          }
+        }
+      }
+
+      let anyPropNotGood = false;
+      for (let prop in supportedDevice.adb) {
+        let values = supportedDevice.adb[prop];
+
+        let propVal = allAdbFields[prop];
+        let isOk = (typeof values === "object") ?
+          (values.indexOf(propVal) !== -1) : (values === propVal);
+
+        if (!isOk) {
+          anyPropNotGood = true;
+          break;
+        }
+      }
+
+      if (!anyPropNotGood) {
+        resolve(supportedDevice);
+      } else {
+        resolve(false);
+      }
+
+    }).catch(reason => {
+      console.error("getprop:", reason);
+      resolve(false);
+    });
   });
 }
 
 /**
  * Relying on Devices.jsm to enumerate all connected devices that have been
- * exposed by the ADBHelper addon. We check that we have supported device
- * and we check whether they are running in ADB or Fastboot mode.
+ * exposed by the ADBHelper addon.
  **/
-function getAllDevices(triggerHandlers) {
-  return new Promise((resolve, reject) => {
-    let devices = Devices.available();
-    if (!devices.length) {
-      reject();
-      return;
-    }
+let Device = (function() {
 
-    for (let d in devices) {
-      let name = devices[d];
-      let device = Devices._devices[name];
+  let devicePromise;
+  let evts = {};
 
-      isSupportedDevice(device).then(() => {
-        if (triggerHandlers) {
-          if (device.type === "adb") {
-            inAdbMode(device);
-          }
+  function connected() {
 
-          if (device.type === "fastboot") {
-            inFastbootMode(device);
-          }
-        }
+    devicePromise = new Promise((resolve, reject) => {
 
+      let devices = Devices.available();
+      if (!devices.length) {
+        return reject();
+      }
+
+      let device = Devices._devices[devices[0]];
+      let waitFun = (device.type === 'adb') ? waitForAdb : waitForFastboot;
+
+      waitFun(device).then(() => {
         resolve(device);
-      }, () => {
-        console.error("Device", device, "is not yet supported.");
-        reject(device);
+        if ('connected' in evts) {
+          evts.connected();
+        }
       });
+
+    });
+  }
+
+  function disconnected() {
+    devicePromise = null;
+    if ('disconnected' in evts) {
+      evts.disconnected();
     }
+  }
+
+  function get() {
+    if (devicePromise) {
+      return devicePromise;
+    }
+    return Promise.reject();
+  }
+
+  function on(evt, fun) {
+    evts[evt] = fun;
+  }
+
+  function init() {
+    Devices.on('register', connected.bind(null));
+    Devices.on('unregister', disconnected.bind(null));
+    Devices.emit('adb-start-polling');
+  }
+
+  return {
+    get: get,
+    on: on,
+    init: init
+  };
+
+})();
+
+function getAvailableBuilds(device) {
+  let configs = supportedDevices.map(config => {
+    return isSupportedConfig(device, config);
+  });
+
+  return Promise.all(configs).then(results => {
+    return results.filter(x => { return x !== false; });
   });
 }
 
@@ -789,42 +776,29 @@ function getAllDevices(triggerHandlers) {
   *  - extract recovery fstab infos
   */
 let distributionContext = null;
-function distributionStep(obj, evt) {
-  console.log("Extracting blob free distribution:", obj.files[0]);
-
-  document.getElementById("pick-distribution").dataset.disabled = true;
-
-  let domStep = document.getElementById("distribution");
-  domStep.classList.add("loading");
+function distributionStep(file, evt) {
+  console.log("Extracting blob free distribution:", file);
 
   let rootDirImage, blobsMap, deviceFstab;
 
-  extractBlobFreeDistribution(obj.files[0]).then(root => {
+  return extractBlobFreeDistribution(file).then(root => {
     rootDirImage = root;
-
     console.log("Extracting blob free content:", rootDirImage);
-
     return extractBlobFreeContent(rootDirImage);
   }).then(result => {
     if (!result) {
       console.error("Error extracting content");
       return Promise.reject();
     }
-
     console.log("Blob free distribution extracted.");
-
     return readBlobsMap(rootDirImage);
   }).then(map => {
     blobsMap = map;
-
     console.log("Blob map extracted, getting fstab");
-
     return readRecoveryFstab(rootDirImage);
   }).then(fstab => {
     deviceFstab = fstab;
-
     console.log("Recovery fstab read", deviceFstab);
-
   }).then(() => {
     distributionContext = {
       rootDirImage: rootDirImage,
@@ -834,9 +808,6 @@ function distributionStep(obj, evt) {
   }).catch((error) => {
     console.error(error);
     distributionContext = null;
-  }).then(function() {
-    domStep.classList.remove("loading");
-    window.dispatchEvent(new CustomEvent("distributionchanged"));
   });
 }
 
@@ -847,13 +818,9 @@ function distributionStep(obj, evt) {
   */
 let deviceContext = null;
 function deviceStep(evt) {
-  evt.target.dataset.disabled = true;
-
-  let domStep = document.getElementById("device")
-  domStep.classList.add("loading");
-
   let adbDevice, runsB2G;
-  getAllDevices(false).then((device) => {
+
+  return Device.get().then(device => {
     adbDevice = device;
     return adbDevice.summonRoot();
   }).then(() => {
@@ -869,41 +836,30 @@ function deviceStep(evt) {
     });
   }).then(() => {
     console.log("Device forced into root mode, checking B2G existence");
-
     return checkDeviceIsB2G(adbDevice);
   }).then(isB2G => {
     runsB2G = isB2G;
-
     console.log("B2G existence checked, pulling all blobs for", adbDevice);
-
-    return getBlobs(adbDevice, distributionContext.rootDirImage, distributionContext.blobsMap);
+    return getBlobs(adbDevice,
+                    distributionContext.rootDirImage,
+                    distributionContext.blobsMap);
   }).then(() => {
     deviceContext = {
       adbDevice: adbDevice,
       runsB2G: runsB2G
     };
-  }).catch((error) => {
-    console.error(error);
-    deviceContext = null;
-  }).then(function() {
-    domStep.classList.remove("loading");
-    window.dispatchEvent(new CustomEvent("devicechanged"));
   });
 }
 
 let imageContext = null;
 function imageStep(evt) {
-  evt.target.dataset.disabled = true;
-
-  let domStep = document.getElementById("image");
-  domStep.classList.add("loading");
 
   let deviceFstab = distributionContext.deviceFstab;
   let runsB2G = deviceContext.runsB2G;
+  let blobs = injectBlobs(distributionContext.rootDirImage,
+                          distributionContext.blobsMap);
 
-  injectBlobs(distributionContext.rootDirImage, distributionContext.blobsMap)
-  .then(injected => {
-    console.log("Injected blobs", injected);
+  return blobs.then(injected => {
 
     let toBuild = [
       buildBootImg(deviceFstab),
@@ -932,12 +888,6 @@ function imageStep(evt) {
     imageContext = {
       built: results
     };
-  }).catch((error) => {
-    console.error(error);
-    imageContext = null;
-  }).then(function() {
-    domStep.classList.remove("loading");
-    window.dispatchEvent(new CustomEvent("imagechanged"));
   });
 }
 
@@ -946,17 +896,14 @@ function imageStep(evt) {
   *  - once detected, fastboot flash all partitions
   **/
 function flashStep(evt) {
-  evt.target.dataset.disabled = true;
-
-  let domStep = document.getElementById("installation");
-  domStep.classList.add("loading");
 
   let fastbootDevice;
   let adbDevice = deviceContext.adbDevice;
   let deviceFstab = distributionContext.deviceFstab;
 
   Devices.emit("fastboot-start-polling");
-  adbDevice.rebootBootloader().then(() => {
+
+  return adbDevice.rebootBootloader().then(() => {
     console.debug("Device rebooting into in fastboot mode now.");
 
     // Avoid races conditions with adb reboot
@@ -969,11 +916,9 @@ function flashStep(evt) {
     });
   }).then(() => {
     console.debug("Enumerating fastboot devices");
-
-    return getAllDevices(false);
-  }).then((fdevice) => {
-    console.log("After getAllDevice");
-    fastbootDevice = fdevice;
+    return Device.get();
+  }).then(device => {
+    fastbootDevice = device;
 
     console.log("Devices enumerated, MUST be fastboot", fastbootDevice);
 
@@ -983,7 +928,6 @@ function flashStep(evt) {
     }
 
     Devices.emit("fastboot-stop-polling");
-    updateFlashProgressValue(1, 100);
 
     return new Promise((resolve, reject) => {
       // Enumerating all fstab partitions we can flash
@@ -1000,15 +944,15 @@ function flashStep(evt) {
         console.debug("Using", fstabEntry, "from", list[currentImage]);
 
         currentImage++;
-        updateFlashProgressValue(currentImage, list.length);
-
-        fastbootDevice.flash(fstabEntry.partition, fstabEntry.imageFile, fastbootDevice.id)
-          .then(res => {
-            console.debug("Flash for", fstabEntry, "returned", res);
-            flashNextImage(cb);
-          }).catch(reason => {
-            flashNextImage(cb);
-          });
+        let flash = fastbootDevice.flash(fstabEntry.partition,
+                                         fstabEntry.imageFile,
+                                         fastbootDevice.id);
+        flash.then(res => {
+          console.debug("Flash for", fstabEntry, "returned", res);
+          flashNextImage(cb);
+        }).catch(reason => {
+          flashNextImage(cb);
+        });
       };
 
       flashNextImage(function() {
@@ -1016,80 +960,185 @@ function flashStep(evt) {
         resolve();
       });
     });
-  }).catch(reason => {
-    console.error("getAllDevices():", reason);
-    return Promise.reject();
   }).then(() => {
     console.log("Rebooting from Fastboot to System");
 
     // Everything should be good now, rebooting device!
     return fastbootDevice.reboot(fastbootDevice.id);
-  }).then(() => {
-    console.log("Device should be booting B2G now");
-    domStep.classList.add("done");
-  }).catch((error) => {
-    alert(":/ -- sad panda");
-  }).then(function() {
-    domStep.classList.remove("loading");
   });
 }
+
+function drawBuild(build) {
+  return `<li><label class="build">
+    <input type="radio" value="${build.url}" name="build" />
+    <div class="description">
+      <h4>${build.name}</h4>
+      <span>${build.description}</span>
+    </div>
+  </label></li>`;
+}
+
+function drawRow(device) {
+  return device.builds.map(drawBuild).join('');
+}
+
+function downloadInfo(info) {
+  $('#additionalProgress')[0].textContent = info || '';
+}
+
+function downloadProgress(currentStep, info) {
+  $('#progressDialog')[0].style.display = 'block';
+  var steps = ['downloading', 'extracting', 'fetching', 'creating', 'flashing'];
+  var done = true;
+  steps.forEach(function(step) {
+    if (step === currentStep) {
+      done = false;
+    }
+    $('.' + step)[0].classList.toggle('done', done);
+  });
+  downloadInfo(info);
+}
+
+function currentStep(step) {
+  $('#wrapper')[0].dataset.currentStep = step;
+}
+
+function step(step, fun) {
+  return function() {
+    downloadProgress(step);
+    return fun.apply(null, arguments);
+  };
+}
+
+// Downloads the blob free build from the server to a local
+// tmp file
+// TODO: cache
+function downloadBuild() {
+
+  let buildUrl = $('input[type=radio]:checked')[0].value;
+
+  // If the build value isnt a url, its a local file the user uploaded
+  // and we can skip the download
+  if (!/^http/.test(buildUrl)) {
+    return Promise.resolve(buildUrl);
+  }
+
+  var opts = {
+    responseType: 'arraybuffer',
+    progress: function(e) {
+      if (e.lengthComputable) {
+        var done = Math.round((e.loaded / e.total) * 100);
+        var mb = Math.round(e.total / 1000 / 1000);
+        downloadInfo('Downloaded ' + done + '% of ' + mb + 'MB');
+      }
+    }
+  };
+
+  var path;
+
+  return xhr(buildUrl, opts).then(blob => {
+    let name = buildUrl.split('/').pop();
+    path = OS.Path.join(kB2GInstallerTmp, name);
+    return OS.File.writeAtomic(path, new Uint8Array(blob));
+  }).then(() => {
+    return path;
+  });
+}
+
+function install() {
+  downloadProgress('downloading');
+  downloadBuild()
+    .then(step('extracting', distributionStep))
+    .then(step('fetching', deviceStep))
+    .then(step('creating', imageStep))
+    .then(step('flashing', flashStep))
+    .then(() => {
+      $('#progressDialog')[0].style.display = 'none';
+      $('#confirmDialog')[0].style.display = 'block';
+    }).catch(e => {
+      console.error('Installing failed');
+      console.error(e);
+    });
+}
+
+
+// SELECT BUILD
+function buildAdded(evt) {
+  var file = evt.target.files[0];
+  var row = drawBuild({
+    url: file.mozFullPath,
+    name: file.name,
+    description: ''
+  });
+  $('#devices')[0].insertAdjacentHTML('beforeend', row);
+  $('#devices li:last-child input')[0].setAttribute('checked', 'checked');
+  buildChecked();
+}
+
+function buildChecked(checked) {
+  currentStep('flash')
+}
+
+// CONNECT DEVICE
+
+// Device is connected, display to the user then show list of
+// available builds to install
+function deviceConnected() {
+  let device;
+  Device.get().then(_device => {
+    device = _device;
+    return getAvailableBuilds(device);
+  }).then(builds => {
+    var deviceName = device.id;
+    if (builds.length) {
+      // We dont get a human readable name from the device, pick
+      // it up from the configuration name
+      deviceName = builds[0].id;
+    }
+    $('#deviceId')[0].textContent = deviceName;
+    $('#devices')[0].innerHTML = builds.map(drawRow).join('');
+    currentStep('select');
+  }).catch(err => {
+    console.error(err);
+  });;
+}
+
+function deviceDisconnected() {
+  currentStep('connect');
+  $('#deviceId')[0].textContent = '';
+  $('#devices')[0].innerHTML = '';
+}
+
+function done() {
+  $('#confirmDialog')[0].style.display = 'none';
+  currentStep('select');
+};
 
 addEventListener("load", function load() {
   removeEventListener("load", load, false);
 
-  console.debug("Received load event");
+  xhr(CONFIG_URL).then(data => {
 
-  Devices.emit("adb-start-polling");
+    supportedDevices = data;
 
-  Devices.on("register", getAllDevices.bind(null, true));
-  Devices.on("unregister", getAllDevices.bind(null, true));
+    $('#userBuild')[0].addEventListener('change', buildAdded.bind(null));
+    $('#devices')[0].addEventListener('change', buildChecked.bind(null));
+    $('#installBtn')[0].addEventListener('click', install.bind(null));
+    $('#confirmDialog button')[0].addEventListener('click', done.bind(null));
 
-  let blobsFreeImage = document.getElementById("blobfree");
-  blobsFreeImage.addEventListener("change", distributionStep.bind(null, blobsFreeImage));
+    Device.on('connected', deviceConnected.bind(null, true));
+    Device.on('disconnected', deviceDisconnected.bind(null, true));
+    Device.init();
 
-  let pullBlobs = document.getElementById("pull-blobs");
-  pullBlobs.addEventListener("click", deviceStep);
+  }).catch(function (err) {
+    console.error(err);
+    console.error('Failed to fetch valid builds.json: ', CONFIG_URL);
+  });
 
-  let makeImage = document.getElementById("make-image");
-  makeImage.addEventListener("click", imageStep);
-
-  let flashImage = document.getElementById("flash-image");
-  flashImage.addEventListener("click", flashStep);
 }, false);
 
 addEventListener("unload", function unload() {
   removeEventListener("unload", unload, false);
-
-  console.debug("Received unload event");
-
   Devices.emit("adb-stop-polling");
+  Devices.emit("fastboot-stop-polling");
 }, false);
-
-addEventListener("distributionchanged", function distribChanged() {
-  console.log("Distribution changed!");
-
-  getAllDevices(true);
-
-  let distributionReady = !!distributionContext;
-  document.getElementById("distribution").classList.toggle("done", distributionReady);
-  document.getElementById("pull-blobs").dataset.disabled = !distributionReady;
-});
-
-addEventListener("devicechanged", function distribChanged() {
-  console.log("Device changed!");
-
-  let deviceReady = !!deviceContext;
-  document.getElementById("device").classList.toggle("done", deviceReady);
-  document.getElementById("flashing-options").classList.toggle("hidden", !deviceContext.runsB2G);
-  document.getElementById("make-image").dataset.disabled = !deviceReady;
-});
-
-addEventListener("imagechanged", function distribChanged() {
-  console.log("Image changed!");
-
-  let imageReady = !!imageContext;
-  document.getElementById("image").classList.toggle("done", imageReady);
-  document.getElementById("flash-image").dataset.disabled = !imageReady;
-});
-
-/* vim: set et ts=2 sw=2 : */
