@@ -211,7 +211,6 @@ function buildRamdisk(from, to) {
  **/
 function buildBootable(root, to) {
   console.debug("Building bootable image", root, to);
-
   let readFiles = [];
   let filesToRead = [ "cmdline", "pagesize", "base" ];
   filesToRead.forEach(file => {
@@ -267,6 +266,7 @@ function buildBootable(root, to) {
  **/
 function buildBootImg(fstab) {
   let fstabPart = fstab["boot.img"];
+  downloadInfo('Building boot.img');
 
   return new Promise((resolve, reject) => {
     buildRamdisk(fstabPart.sourceDir, OS.Path.join(fstabPart.sourceDir, "initrd.img")).then(result => {
@@ -291,6 +291,8 @@ function buildBootImg(fstab) {
  **/
 function buildRecoveryImg(fstab) {
   let fstabPart = fstab["recovery.img"];
+  downloadInfo('Building recovery.img');
+
   let imgSrc = OS.Path.join(fstabPart.sourceDir, "initrd.img");
   return buildRamdisk(fstabPart.sourceDir, imgSrc).then(result => {
     console.debug("Recovery.img ramdisk built", result);
@@ -303,6 +305,7 @@ function buildRecoveryImg(fstab) {
  **/
 function buildSystemImg(fstab) {
   let fstabPart = fstab["system.img"];
+  downloadInfo('Building system.img');
   console.debug("Will build system.img from",
                 fstabPart.sourceDir, "to", fstabPart.imageFile);
 
@@ -356,6 +359,7 @@ function buildSystemImg(fstab) {
  **/
 function buildDataImg(fstab) {
   let fstabPart = fstab["data.img"];
+  downloadInfo('Building data.img');
   console.debug("Will build data.img from", fstabPart.sourceDir, "to", fstabPart.imageFile);
 
   // it's in device/, not in device/content/DATA/
@@ -609,8 +613,8 @@ function extractBlobFreeContent(devicePath) {
 }
 
 function updateProgressValue(current, max, blobName) {
-  let prcent = ((current * 1.0) / max) * 100;
   downloadInfo('Pulling: ' + blobName);
+  subInfo(current + ' of ' + max + ' (' + percentStr(current, max) + ')');
 }
 
 function waitForAdb(device) {
@@ -942,6 +946,8 @@ function flashStep(evt) {
 
         let fstabEntry = deviceFstab[list[currentImage]];
         console.debug("Using", fstabEntry, "from", list[currentImage]);
+        downloadInfo('Flashing ' + fstabEntry.imageFile.split('/').pop());
+        subInfo(currentImage + ' of ' + list.length);
 
         currentImage++;
         let flash = fastbootDevice.flash(fstabEntry.partition,
@@ -982,8 +988,16 @@ function drawRow(device) {
   return device.builds.map(drawBuild).join('');
 }
 
+function percentStr(current, total) {
+  return Math.round(((current * 1.0) / total) * 100) + '%';
+}
+
 function downloadInfo(info) {
   $('#additionalProgress')[0].textContent = info || '';
+}
+
+function subInfo(info) {
+  $('#subAdditionalProgress')[0].textContent = info || '';
 }
 
 function downloadProgress(currentStep, info) {
@@ -991,12 +1005,16 @@ function downloadProgress(currentStep, info) {
   var steps = ['downloading', 'extracting', 'fetching', 'creating', 'flashing'];
   var done = true;
   steps.forEach(function(step) {
+    var li = $('.' + step)[0];
+    li.classList.remove('inprogress');
     if (step === currentStep) {
+      li.classList.add('inprogress');
       done = false;
     }
     $('.' + step)[0].classList.toggle('done', done);
   });
   downloadInfo(info);
+  subInfo('');
 }
 
 function currentStep(step) {
