@@ -120,12 +120,26 @@ button {
 .dialog section {
   background: #F4F4F4;
   box-shadow: 1px 1px 2px rgba(0, 0, 0, .3);
-  max-width: 400px;
   overflow: hidden;
+}
+
+#progressDialog li {
+  position: relative;
 }
 
 #progressDialog li.done {
   background: url(checkmark.png) no-repeat right 10px center;
+  background-size: 20px;
+}
+
+#progressDialog li.inprogress:after {
+  content: "";
+  width: 20px;
+  height: 20px;
+  position: absolute;
+  right: 10px;
+  background: url(spinner.png) no-repeat right center;
+  animation: 0.9s spinner-animation infinite steps(30);
   background-size: 20px;
 }
 
@@ -134,7 +148,11 @@ button {
   padding: 0 1rem;
 }
 
-#additionalProgress {
+#progressDialog section {
+  width: 450px;
+}
+
+#additionalProgress, #subAdditionalProgress {
   color: #999;
   min-height: 1.5rem;
   margin-bottom: 0;
@@ -143,6 +161,7 @@ button {
   font-size: .8rem;
   text-overflow: ellipsis;
   overflow: hidden;
+  white-space: nowrap;
 }
 
 progress::-moz-progress-bar {
@@ -167,6 +186,11 @@ progress {
 @keyframes moving-backward {
   0% { transform: translateX(0); }
   100% { transform: translateX(-33%); }
+}
+
+@keyframes spinner-animation {
+  from { transform: rotate(1deg); }
+  to { transform: rotate(360deg); }
 }
 
 .dialog {
