@@ -628,9 +628,10 @@ function waitForAdb(device) {
 function waitForFastboot(device) {
   console.debug("[FASTBOOT] Device is in Fastboot mode.");
   return device.getvar("product", device.id).then(product => {
+    console.debug("[FASTBOOT] Device is in Fastboot mode, product=", product);
     return device.getvar("serialno", device.id);
   }).then(sn => {
-    Devices.emit("fastboot-stop-polling");
+    console.debug("[FASTBOOT] Device is in Fastboot mode, sn=", sn);
   });
 }
 
@@ -710,7 +711,8 @@ let Device = (function() {
 
       let devices = Devices.available();
       if (!devices.length) {
-        return reject();
+        reject();
+        return;
       }
 
       let device = Devices._devices[devices[0]];
@@ -721,6 +723,10 @@ let Device = (function() {
         if ('connected' in evts) {
           evts.connected();
         }
+      }).catch(err => {
+        console.debug("Failure while waiting device: ", err);
+        reject();
+        return;
       });
 
     });
