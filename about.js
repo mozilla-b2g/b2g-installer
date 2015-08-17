@@ -231,9 +231,12 @@ function buildBootable(root, to) {
       let options = {
         kernel:  kernelFile.path,
         ramdisk: ramdiskFile.path,
-        dt:      deviceTree.path,
         output:  to
       };
+
+      if (deviceTree.exists()) {
+        options.dt = deviceTree.path;
+      }
 
       for (let i = 0; i < results.length; i++) {
         let filename = filesToRead[i];
