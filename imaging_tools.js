@@ -210,6 +210,11 @@ ImagingTools.prototype = {
       args.push("--dt", options.dt);
     }
 
+    if (options.extraArguments) {
+      let extraArguments = options.extraArguments.trim().split(/ +/);
+      args = args.concat(extraArguments);
+    }
+
     args.push("--output", options.output);
 
     return new Promise((resolve, reject) => {
@@ -237,7 +242,8 @@ ImagingTools.prototype = {
       ./make_ext4fs `cat "${DEVICE}-cmdline-fs.txt" | grep ^system|cut -d':' -f2` "system.img" "${IMAGE_DIR}/SYSTEM/"
     **/
 
-    let args = options.cmdline_fs.split(" ");
+    // cmdline_fs may include multiple spaces between arguments
+    let args = options.cmdline_fs.split(/ +/);
     args.push(options.image);
     args.push(options.source);
 
