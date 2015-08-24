@@ -8,12 +8,16 @@ html {
 body {
   color: #5E5E5E;
   font-weight: 400;
+  background: url(Header.png) no-repeat top center,
+    url(Header_Gradient.png) repeat-x top center;
+  background-size: 800px, 1px 216px;
 }
 
 h1 {
   font-size: 2em;
   font-weight: 300;
   text-align: center;
+  margin: 180px 0 20px 0;
 }
 
 h2 {
@@ -42,6 +46,29 @@ ul {
   display: flex;
   overflow: hidden;
   margin: 0 auto;
+}
+
+#wrapper section {
+  background-size: 80px;
+  background-repeat: no-repeat;
+  background-position: center top;
+}
+
+#wrapper section h2 {
+  margin-top: 100px;
+}
+
+#wrapper section.connect {
+  background-image: url(Connect_Icon_130x130.png);
+}
+
+#wrapper section.select {
+  background-image: url(Select_Icon_130x130.png);
+  margin: 0 20px;
+}
+
+#wrapper section.flash {
+  background-image: url(Flash_Icon_130x130.png);
 }
 
 #wrapper[data-current-step="connect"] .select,

@@ -1,4 +1,4 @@
-FILES=about.css about.js about.xhtml bootstrap.js imaging_tools.js main.js subprocess.js chrome.manifest Fira checkmark.png spinner.png
+FILES=about.css about.js about.xhtml bootstrap.js imaging_tools.js main.js subprocess.js chrome.manifest Fira checkmark.png spinner.png Header.png Header_Gradient.png Connect_Icon_130x130.png Flash_Icon_130x130.png Select_Icon_130x130.png
 ADDON_VERSION=0.3
 XPI_NAME=b2g-installer-$(ADDON_VERSION)
 
