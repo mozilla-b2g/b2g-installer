@@ -934,7 +934,7 @@ function flashStep(evt) {
       setTimeout(function() {
         console.debug("Finished 5 secs countdown  !");
         resolve();
-      }, 5000);
+      }, 10000);
     });
   }).then(() => {
     console.debug("Enumerating fastboot devices");
