@@ -224,42 +224,51 @@ function buildBootable(root, to) {
   let deviceTree = new FileUtils.File(OS.Path.join(root, "..", "..", "dt.img"));
   console.debug("This device hasDeviceTree? ", deviceTree.exists());
 
-  return new Promise((resolve, reject) => {
-    Promise.all(readFiles).then(results => {
+  // Read cmdline_fs file for optional extra arguments
+  let cmdline = new File(OS.Path.join(root, "..", "..", kCmdlineFs));
 
-      let options = {
-        kernel:  kernelFile.path,
-        ramdisk: ramdiskFile.path,
-        output:  to
-      };
+  return getCmdlineFsArgs(cmdline, OS.Path.basename(to)).then(args => {
+    return new Promise((resolve, reject) => {
+      Promise.all(readFiles).then(results => {
 
-      if (deviceTree.exists()) {
-        options.dt = deviceTree.path;
-      }
+        let options = {
+          kernel:  kernelFile.path,
+          ramdisk: ramdiskFile.path,
+          output:  to
+        };
 
-      for (let i = 0; i < results.length; i++) {
-        let filename = filesToRead[i];
-        options[filename] = results[i].trim();
-      };
+        if (args) {
+          options.extraArguments = args;
+        }
 
-      console.debug("Prepared options", options);
+        if (deviceTree.exists()) {
+          options.dt = deviceTree.path;
+        }
 
-      cpmm.addMessageListener("B2GInstaller:MainProcess:BuildBootable:Return",
-        function ramdiskMessageListener(reply) {
-          cpmm.removeMessageListener("B2GInstaller:MainProcess:BuildBootable:Return", ramdiskMessageListener);
-          console.debug("Received main process reply:", reply);
+        for (let i = 0; i < results.length; i++) {
+          let filename = filesToRead[i];
+          options[filename] = results[i].trim();
+        };
 
-          if (reply.data.res) {
-            resolve(true);
-          } else {
-            reject(false);
-          }
-        });
+        console.debug("Prepared options", options);
 
-      cpmm.sendAsyncMessage("B2GInstaller:MainProcess:BuildBootable", options);
-    }).catch(reason => {
-      console.error("Reading all bootimg files", reason);
-      reject(false);
+        cpmm.addMessageListener("B2GInstaller:MainProcess:BuildBootable:Return",
+          function ramdiskMessageListener(reply) {
+            cpmm.removeMessageListener("B2GInstaller:MainProcess:BuildBootable:Return", ramdiskMessageListener);
+            console.debug("Received main process reply:", reply);
+
+            if (reply.data.res) {
+              resolve(true);
+            } else {
+              reject(false);
+            }
+          });
+
+        cpmm.sendAsyncMessage("B2GInstaller:MainProcess:BuildBootable", options);
+      }).catch(reason => {
+        console.error("Reading all bootimg files", reason);
+        reject(false);
+      });
     });
   });
 }
@@ -315,22 +324,8 @@ function buildSystemImg(fstab) {
   // it's in device/, not in device/content/SYSTEM/
   let cmdline = new File(OS.Path.join(fstabPart.sourceDir, "..", "..", kCmdlineFs));
 
-  return new Promise((resolve, reject) => {
-    let fr = new FileReader();
-    fr.readAsText(cmdline);
-    console.debug("Reading content of", cmdline);
-    fr.addEventListener("loadend", function() {
-      let args = "";
-
-      console.debug("Checking within", fr.result);
-      let lines = fr.result.split("\n");
-      console.debug("All lines", lines);
-      lines.forEach(line => {
-        if (line.startsWith("system.img")) {
-          args = line.split(": ")[1];
-          return;
-        }
-      });
+  return getCmdlineFsArgs(cmdline, "system.img").then(args => {
+    return new Promise((resolve, reject) => {
       let options = {
         image: fstabPart.imageFile,
         source: fstabPart.sourceDir,
@@ -368,22 +363,8 @@ function buildDataImg(fstab) {
   // it's in device/, not in device/content/DATA/
   let cmdline = new File(OS.Path.join(fstabPart.sourceDir, "..", "..", kCmdlineFs));
 
-  return new Promise((resolve, reject) => {
-    let fr = new FileReader();
-    fr.readAsText(cmdline);
-    console.debug("Reading content of", cmdline);
-    fr.addEventListener("loadend", function() {
-      let args = "";
-
-      console.debug("Checking within", fr.result);
-      let lines = fr.result.split("\n");
-      console.debug("All lines", lines);
-      lines.forEach(line => {
-        if (line.startsWith("userdata.img")) {
-          args = line.split(": ")[1];
-          return;
-        }
-      });
+  return getCmdlineFsArgs(cmdline, "userdata.img").then(args => {
+    return new Promise((resolve, reject) => {
       let options = {
         image: fstabPart.imageFile,
         source: fstabPart.sourceDir,
@@ -404,6 +385,34 @@ function buildDataImg(fstab) {
         });
 
       cpmm.sendAsyncMessage("B2GInstaller:MainProcess:BuildExt4FS", options);
+    });
+  });
+}
+
+/**
+ * Read the cmdline_fs.txt file to get any extra arguments needed to build a
+ * specific image
+ * @param {String} cmdline - Path to the cmdline_fs.txt file
+ * @param {String} imageName - Name of the image
+ * @return {Promise<String>}
+ */
+function getCmdlineFsArgs(cmdline, imageName) {
+  return new Promise(resolve => {
+    let fr = new FileReader();
+    fr.readAsText(cmdline);
+    console.debug("Reading content of", cmdline);
+    fr.addEventListener("loadend", () => {
+      let args = "";
+      console.debug("Checking within", fr.result);
+      let lines = fr.result.split("\n");
+      console.debug("All lines", lines);
+      lines.forEach(line => {
+        if (line.startsWith(imageName)) {
+          args = line.split(":")[1].trim();
+          return;
+        }
+      });
+      resolve(args);
     });
   });
 }
