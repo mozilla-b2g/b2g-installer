@@ -570,7 +570,8 @@ function extractBlobFreeDistribution(path) {
         console.debug("Checking existence of", f);
         if (!fi.exists()) {
           console.error("Missing", f);
-          reject();
+          reject("missing:" + f);
+          return;
         }
       }
 
@@ -830,6 +831,7 @@ function distributionStep(file, evt) {
   }).catch((error) => {
     console.error(error);
     distributionContext = null;
+    return Promise.reject();
   });
 }
 
@@ -1094,6 +1096,7 @@ function install() {
     }).catch(e => {
       console.error('Installing failed');
       console.error(e);
+      return Promise.reject();
     });
 }
 
