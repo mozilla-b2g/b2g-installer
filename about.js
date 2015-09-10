@@ -125,50 +125,39 @@ function getBlobs(device, root, map) {
   });
 
   return new Promise((resolve, reject) => {
-    device.isRoot().then(isRoot => {
-      if (!isRoot) {
-        console.error("Not root, should not happen.");
-      } else {
-        console.debug("Ready to pull blobs from device.");
+    let currentBlob = 0;
+    let pullNextBlob = function(cb) {
+      if (currentBlob >= list.length) {
+        cb && cb();
+        return;
       }
 
-      let currentBlob = 0;
-      let pullNextBlob = function(cb) {
-        if (currentBlob >= list.length) {
-          cb && cb();
-          return;
-        }
+      let src = list[currentBlob];
+      if (!src) {
+        console.error("Invalid", src, "at", currentBlob);
+        return;
+      }
 
-        let src = list[currentBlob];
-        if (!src) {
-          console.error("Invalid", src, "at", currentBlob);
-          return;
-        }
+      updateProgressValue(currentBlob, list.length, src);
 
-        updateProgressValue(currentBlob, list.length, src);
+      // Remove leading / for OS.Path.join()
+      let _src = src[0] === "/" ? src.slice(1) : src;
+      let f = new FileUtils.File(OS.Path.join(blobsDir.path, _src));
+      currentBlob++;
 
-        // Remove leading / for OS.Path.join()
-        let _src = src[0] === "/" ? src.slice(1) : src;
-        let f = new FileUtils.File(OS.Path.join(blobsDir.path, _src));
-        currentBlob++;
-
-        device.pull(src, f.path).then(res => {
-          console.debug("adb pull", src, f.path, "success", res);
-          pullNextBlob(cb);
-        }).catch(reason => {
-          console.error("adb pull", src, f.path, "fail", reason);
-          pullNextBlob(cb);
-        });
-      };
-
-      updateProgressValue(0, 1, "Starting to pull blobs from device.");
-      pullNextBlob(function() {
-        updateProgressValue(0, 1, "All blobs have been pulled.");
-        resolve();
+      device.pull(src, f.path).then(res => {
+        console.debug("adb pull", src, f.path, "success", res);
+        pullNextBlob(cb);
+      }).catch(reason => {
+        console.error("adb pull", src, f.path, "fail", reason);
+        pullNextBlob(cb);
       });
-    }).catch(reason => {
-      console.error("isRoot():", reason);
-      reject();
+    };
+
+    updateProgressValue(0, 1, "Starting to pull blobs from device.");
+    pullNextBlob(function() {
+      updateProgressValue(0, 1, "All blobs have been pulled.");
+      resolve();
     });
   });
 }
@@ -475,6 +464,22 @@ function readBlobsMap(root) {
 }
 
 /**
+ * Reading the list of devices supported by this distribution
+ **/
+function readDevicesJson(root) {
+  return new Promise((resolve, reject) => {
+    let fr = new FileReader();
+    let devices = new File(OS.Path.join(root, kDevicesJson));
+    fr.readAsText(devices);
+    console.debug("Reading content of", devices);
+    fr.addEventListener("loadend", function() {
+      console.debug("Content of devices:", fr.result);
+      resolve(JSON.parse(fr.result));
+    });
+  });
+}
+
+/**
  * Reading the recovery fstab file from a blobfree distribution
  **/
 function readRecoveryFstab(root) {
@@ -574,15 +579,7 @@ function extractBlobFreeDistribution(path) {
           return;
         }
       }
-
-      let fr = new FileReader();
-      let devices = new File(OS.Path.join(devicePath, kDevicesJson));
-      fr.readAsText(devices);
-      console.debug("Reading content of", devices);
-      fr.addEventListener("loadend", function() {
-        console.debug("Content of devices:", supportedDevices);
-        resolve(devicePath);
-      });
+      resolve(devicePath);
     }).catch(function(e) {
       // This can fail with permissions errors but is safe to ignore for now
       resolve();
@@ -632,14 +629,7 @@ function updateProgressValue(current, max, blobName) {
 
 function waitForAdb(device) {
   console.debug("[ADB] Device is in ADB mode. 2");
-  return device.isRoot().then(isRoot => {
-    if (!isRoot) {
-      console.debug("[ADB] Putting device into root mode.");
-      return device.summonRoot();
-    } else {
-      return device.getModel();
-    }
-  });
+  return device.getModel();
 }
 
 function waitForFastboot(device) {
@@ -802,7 +792,7 @@ let distributionContext = null;
 function distributionStep(file, evt) {
   console.log("Extracting blob free distribution:", file);
 
-  let rootDirImage, blobsMap, deviceFstab;
+  let rootDirImage, blobsMap, deviceFstab, deviceBuilds, deviceJson;
 
   return extractBlobFreeDistribution(file).then(root => {
     rootDirImage = root;
@@ -814,6 +804,21 @@ function distributionStep(file, evt) {
       return Promise.reject();
     }
     console.log("Blob free distribution extracted.");
+    return readDevicesJson(rootDirImage);
+  }).then(json => {
+    deviceJson = json;
+    console.log("Device descriptor read", deviceJson);
+    return Device.get();
+  }).then(device => {
+    console.log("Checking device compatibility");
+    return isSupportedConfig(device, deviceJson);
+  }).then(builds => {
+    if (builds.length === 0) {
+      console.error("No compatible device.");
+      return Promise.reject();
+    }
+    deviceBuilds = builds;
+    console.log("Compatible device builds", deviceBuilds);
     return readBlobsMap(rootDirImage);
   }).then(map => {
     blobsMap = map;
@@ -826,12 +831,40 @@ function distributionStep(file, evt) {
     distributionContext = {
       rootDirImage: rootDirImage,
       blobsMap: blobsMap,
-      deviceFstab: deviceFstab
+      deviceFstab: deviceFstab,
+      deviceBuilds: deviceBuilds
     };
   }).catch((error) => {
     console.error(error);
     distributionContext = null;
     return Promise.reject();
+  });
+}
+
+function ensureRootIfNeeded() {
+  // We consider that the default usecase is device will require rooting for
+  // pulling blobs. So a missing requireRoot field is equivalent to true.
+  let requiresRoot =
+    distributionContext.deviceBuilds[0].requiresRoot === undefined ||
+    distributionContext.deviceBuilds[0].requiresRoot === true;
+
+  if (!requiresRoot) {
+    console.log("Skipping adb root for this device");
+    return Promise.resolve();
+  }
+
+  return Device.get().then(device => {
+    return device.summonRoot();
+  }).then(() => {
+    console.log("Waiting for adb root to finish ...");
+    // Avoid races conditions with adb root
+    return new Promise((resolve, reject) => {
+      console.debug("Starting root 5 secs countdown ...");
+      setTimeout(() => {
+        console.debug("Finished root 5 secs countdown  !");
+        return resolve();
+      }, 5000);
+    });
   });
 }
 
@@ -843,23 +876,11 @@ function distributionStep(file, evt) {
 let deviceContext = null;
 function deviceStep(evt) {
   let adbDevice, runsB2G;
-
-  return Device.get().then(device => {
+  return ensureRootIfNeeded().then(() => {
+    return Device.get();
+  }).then(device => {
     adbDevice = device;
-    return adbDevice.summonRoot();
-  }).then(() => {
-    console.log("Waiting for adb root to finish ...");
-
-    // Avoid races conditions with adb root
-    return new Promise((resolve, reject) => {
-      console.debug("Starting 5 secs countdown ...");
-      setTimeout(function() {
-        console.debug("Finished 5 secs countdown  !");
-        resolve();
-      }, 5000);
-    });
-  }).then(() => {
-    console.log("Device forced into root mode, checking B2G existence");
+    console.log("Checking B2G existence");
     return checkDeviceIsB2G(adbDevice);
   }).then(isB2G => {
     runsB2G = isB2G;
