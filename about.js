@@ -1174,27 +1174,55 @@ function done() {
   currentStep('select');
 };
 
-addEventListener("load", function load() {
-  removeEventListener("load", load, false);
+function showOffline(isOffline) {
+  document.getElementById('offline').style.visibility =
+    isOffline ? "visible" : "hidden";
+  document.getElementById('offline').style.display    =
+    isOffline ? "block" : "none";
+}
+
+function downloadBuildsList() {
+  // Only fetch the list of builds once
+  if (supportedDevices && supportedDevices.length > 0) {
+    console.error("Already supportedDevices: ", supportedDevices);
+    return;
+  }
 
   xhr(CONFIG_URL).then(data => {
-
     supportedDevices = data;
-
-    $('#userBuild')[0].addEventListener('change', buildAdded.bind(null));
-    $('#devices')[0].addEventListener('change', buildChecked.bind(null));
-    $('#installBtn')[0].addEventListener('click', install.bind(null));
-    $('#confirmDialog button')[0].addEventListener('click', done.bind(null));
-
-    Device.on('connected', deviceConnected.bind(null, true));
-    Device.on('disconnected', deviceDisconnected.bind(null, true));
-    Device.init();
-
-  }).catch(function (err) {
+  }).catch(err => {
+    showOffline(true);
     console.error(err);
     console.error('Failed to fetch valid builds.json: ', CONFIG_URL);
   });
+}
 
+addEventListener("offline", e => {
+  console.log("offline");
+  showOffline(true);
+});
+
+addEventListener("online", e => {
+  console.log("online");
+  showOffline(false);
+  downloadBuildsList();
+});
+
+addEventListener("load", function load() {
+  removeEventListener("load", load, false);
+
+  showOffline(!navigator.onLine);
+
+  $('#userBuild')[0].addEventListener('change', buildAdded.bind(null));
+  $('#devices')[0].addEventListener('change', buildChecked.bind(null));
+  $('#installBtn')[0].addEventListener('click', install.bind(null));
+  $('#confirmDialog button')[0].addEventListener('click', done.bind(null));
+
+  Device.on('connected', deviceConnected.bind(null, true));
+  Device.on('disconnected', deviceDisconnected.bind(null, true));
+  Device.init();
+
+  downloadBuildsList();
 }, false);
 
 addEventListener("unload", function unload() {
