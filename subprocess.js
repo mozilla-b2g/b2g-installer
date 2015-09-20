@@ -1,4 +1,4 @@
-// -*- coding: utf-8 -*-
+// -*- coding: utf-8; indent-tabs-mode: nil -*-
 // vim: et:ts=4:sw=4:sts=4:ft=javascript
 /* ***** BEGIN LICENSE BLOCK *****
  * Version: MPL 1.1/GPL 2.0/LGPL 2.1
@@ -165,8 +165,8 @@ if (Runtime.OS == "Linux" && "DISPLAY" in Environment) {
 
 /*
 Fake require statements to ensure worker scripts are packaged:
-require("subprocess_worker_win.js");
-require("subprocess_worker_unix.js");
+require("./subprocess_worker_win.js");
+require("./subprocess_worker_unix.js");
 */
 const URL_PREFIX = module.uri.replace(/subprocess\.js/, "");
 const WORKER_URL_WIN = URL_PREFIX + "subprocess_worker_win.js";
@@ -193,9 +193,9 @@ const LRESULT = ctypes.size_t;
 const ULONG_PTR = ctypes.uintptr_t;
 const PVOID = ctypes.voidptr_t;
 const LPVOID = PVOID;
-const LPCTSTR = ctypes.char16_t ? ctypes.char16_t.ptr : ctypes.jschar.ptr;
-const LPCWSTR = ctypes.char16_t ? ctypes.char16_t.ptr : ctypes.jschar.ptr;
-const LPTSTR = ctypes.char16_t ? ctypes.char16_t.ptr : ctypes.jschar.ptr;
+const LPCTSTR = ctypes.char16_t.ptr;
+const LPCWSTR = ctypes.char16_t.ptr;
+const LPTSTR = ctypes.char16_t.ptr;
 const LPSTR = ctypes.char.ptr;
 const LPCSTR = ctypes.char.ptr;
 const LPBYTE = ctypes.char.ptr;
@@ -301,6 +301,7 @@ const OVERLAPPED = new ctypes.StructType("OVERLAPPED");
 //UNIX definitions
 const pid_t = ctypes.int32_t;
 const WNOHANG = 1;
+const F_GETFD = 1;
 const F_SETFL = 4;
 
 const LIBNAME       = 0;
@@ -707,8 +708,7 @@ function subprocess_win32(options) {
             //An environment block consists of
             //a null-terminated block of null-terminated strings.
             //Using CREATE_UNICODE_ENVIRONMENT so needs to be char16_t
-            var char_t = ctypes.char16_t ? ctypes.char16_t : ctypes.jschar;
-            environment = char_t.array()(environment.join('\0') + '\0');
+            environment = ctypes.char16_t.array()(environment.join('\0') + '\0');
         } else {
             environment = null;
         }
@@ -974,7 +974,6 @@ function subprocess_win32(options) {
      * Open the pipes for reading from stdout and stderr
      */
     function readPipes() {
-
         stdoutWorker = createReader(child.stdout, "stdout", function (data) {
             if(options.stdout) {
                 setTimeout(function() {
@@ -1124,6 +1123,67 @@ function subprocess_unix(options) {
                          pid_t
     );
 
+    //NULL terminated array of strings, argv[0] will be command >> + 2
+    var argv = ctypes.char.ptr.array(options.arguments.length + 2);
+    var envp = ctypes.char.ptr.array(options.environment.length + 1);
+
+    // posix_spawn_file_actions_t is a complex struct that may be different on
+    // each platform. We do not care about its attributes, we don't need to
+    // get access to them, but we do need to allocate the right amount
+    // of memory for it.
+    // At 2013/10/28, its size was 80 on linux, but better be safe (and larger),
+    // than crash when posix_spawn_file_actions_init fill `action` with zeros.
+    // Use `gcc sizeof_fileaction.c && ./a.out` to check that size.
+    var posix_spawn_file_actions_t = ctypes.uint8_t.array(100);
+
+    //int posix_spawn(pid_t *restrict pid, const char *restrict path,
+    //   const posix_spawn_file_actions_t *file_actions,
+    //   const posix_spawnattr_t *restrict attrp,
+    //   char *const argv[restrict], char *const envp[restrict]);
+    var posix_spawn = libc.declare("posix_spawn",
+                         ctypes.default_abi,
+                         ctypes.int,
+                         pid_t.ptr,
+                         ctypes.char.ptr,
+                         posix_spawn_file_actions_t.ptr,
+                         ctypes.voidptr_t,
+                         argv,
+                         envp
+    );
+
+    //int posix_spawn_file_actions_init(posix_spawn_file_actions_t *file_actions);
+    var posix_spawn_file_actions_init = libc.declare("posix_spawn_file_actions_init",
+                         ctypes.default_abi,
+                         ctypes.int,
+                         posix_spawn_file_actions_t.ptr
+    );
+
+    //int posix_spawn_file_actions_destroy(posix_spawn_file_actions_t *file_actions);
+    var posix_spawn_file_actions_destroy = libc.declare("posix_spawn_file_actions_destroy",
+                         ctypes.default_abi,
+                         ctypes.int,
+                         posix_spawn_file_actions_t.ptr
+    );
+
+    // int posix_spawn_file_actions_adddup2(posix_spawn_file_actions_t *
+    //                                      file_actions, int fildes, int newfildes);
+    var posix_spawn_file_actions_adddup2 = libc.declare("posix_spawn_file_actions_adddup2",
+                         ctypes.default_abi,
+                         ctypes.int,
+                         posix_spawn_file_actions_t.ptr,
+                         ctypes.int,
+                         ctypes.int
+    );
+
+    // int posix_spawn_file_actions_addclose(posix_spawn_file_actions_t *
+    //                                       file_actions, int fildes);
+    var posix_spawn_file_actions_addclose = libc.declare("posix_spawn_file_actions_addclose",
+                         ctypes.default_abi,
+                         ctypes.int,
+                         posix_spawn_file_actions_t.ptr,
+                         ctypes.int
+    );
+
     //int pipe(int pipefd[2]);
     var pipefd = ctypes.int.array(2);
     var pipe = libc.declare("pipe",
@@ -1132,35 +1192,10 @@ function subprocess_unix(options) {
                          pipefd
     );
 
-    //int dup(int oldfd);
-    var dup= libc.declare("dup",
-                          ctypes.default_abi,
-                          ctypes.int,
-                          ctypes.int
-    );
-
     //int close(int fd);
     var close = libc.declare("close",
                           ctypes.default_abi,
                           ctypes.int,
-                          ctypes.int
-    );
-
-    //NULL terminated array of strings, argv[0] will be command >> + 2
-    var argv = ctypes.char.ptr.array(options.arguments.length + 2);
-    var envp = ctypes.char.ptr.array(options.environment.length + 1);
-    var execve = libc.declare("execve",
-                          ctypes.default_abi,
-                          ctypes.int,
-                          ctypes.char.ptr,
-                          argv,
-                          envp
-    );
-
-    //void exit(int status);
-    var exit = libc.declare("exit",
-                          ctypes.default_abi,
-                          ctypes.void_t,
                           ctypes.int
     );
 
@@ -1262,55 +1297,74 @@ function subprocess_unix(options) {
             }
         }
 
-        pid = fork();
-        if (pid > 0) { // parent
-            close(_in[0]);
-            close(_out[1]);
-            if(!options.mergeStderr)
-                close(_err[1]);
-            child.stdin  = _in[1];
-            child.stdinFd = _in;
-            child.stdout = _out[0];
-            child.stderr = options.mergeStderr ? undefined : _err[0];
-            child.pid = pid;
-            return pid;
-        } else if (pid == 0) { // child
-            if (workdir) {
-                if (chdir(workdir) < 0) {
-                    exit(126);
-                }
-            }
-            closeOtherFds(_in[0], _out[1], options.mergeStderr ? _out[1] : _err[1]);
-            close(_in[1]);
-            close(_out[0]);
-            if(!options.mergeStderr)
-                close(_err[0]);
-            close(0);
-            dup(_in[0]);
-            close(1);
-            dup(_out[1]);
-            close(2);
-            dup(options.mergeStderr ? _out[1] : _err[1]);
-            execve(command, _args, _envp);
-            exit(1);
-        } else {
-            // we should not really end up here
-            if(!options.mergeStderr) {
-                close(_err[0]);
-                close(_err[1]);
-            }
-            close(_out[0]);
-            close(_out[1]);
-            close(_in[0]);
-            close(_in[1]);
-            throw("Fatal - failed to create subprocess '"+command+"'");
+        let STDIN_FILENO = 0;
+        let STDOUT_FILENO = 1;
+        let STDERR_FILENO = 2;
+
+        let action = posix_spawn_file_actions_t();
+        posix_spawn_file_actions_init(action.address());
+
+        posix_spawn_file_actions_adddup2(action.address(), _in[0], STDIN_FILENO);
+        posix_spawn_file_actions_addclose(action.address(), _in[1]);
+        posix_spawn_file_actions_addclose(action.address(), _in[0]);
+
+        posix_spawn_file_actions_adddup2(action.address(), _out[1], STDOUT_FILENO);
+        posix_spawn_file_actions_addclose(action.address(), _out[1]);
+        posix_spawn_file_actions_addclose(action.address(), _out[0]);
+
+        if (!options.mergeStderr) {
+          posix_spawn_file_actions_adddup2(action.address(), _err[1], STDERR_FILENO);
+          posix_spawn_file_actions_addclose(action.address(), _err[1]);
+          posix_spawn_file_actions_addclose(action.address(), _err[0]);
         }
+
+        // posix_spawn doesn't support setting a custom workdir for the child,
+        // so change the cwd in the parent process before launching the child process.
+        if (workdir) {
+          if (chdir(workdir) < 0) {
+            throw new Error("Unable to change workdir before launching child process");
+          }
+        }
+
+        closeOtherFds(action, _in[1], _out[0], options.mergeStderr ? undefined : _err[0]);
+
+        let id = pid_t(0);
+        let rv = posix_spawn(id.address(), command, action.address(), null, _args, _envp);
+        posix_spawn_file_actions_destroy(action.address());
+        if (rv != 0) {
+          // we should not really end up here
+          if(!options.mergeStderr) {
+            close(_err[0]);
+            close(_err[1]);
+          }
+          close(_out[0]);
+          close(_out[1]);
+          close(_in[0]);
+          close(_in[1]);
+          throw new Error("Fatal - failed to create subprocess '"+command+"'");
+        }
+        pid = id.value;
+
+        close(_in[0]);
+        close(_out[1]);
+        if (!options.mergeStderr)
+          close(_err[1]);
+        child.stdin  = _in[1];
+        child.stdout = _out[0];
+        child.stderr = options.mergeStderr ? undefined : _err[0];
+        child.pid = pid;
+
         return pid;
     }
 
 
     // close any file descriptors that are not required for the process
-    function closeOtherFds(fdIn, fdOut, fdErr) {
+    function closeOtherFds(action, fdIn, fdOut, fdErr) {
+        // Unfortunately on mac, any fd registered in posix_spawn_file_actions_addclose
+        // that can't be closed correctly will make posix_spawn fail...
+        // Even if we ensure registering only still opened fds.
+        if (gXulRuntime.OS == "Darwin")
+            return;
 
         var maxFD = 256; // arbitrary max
 
@@ -1345,8 +1399,9 @@ function subprocess_unix(options) {
         // close any file descriptors
         // fd's 0-2 are already closed
         for (var i = 3; i < maxFD; i++) {
-            if (i != fdIn && i != fdOut && i != fdErr)
-                close(i);
+            if (i != fdIn && i != fdOut && i != fdErr && fcntl(i, F_GETFD, -1) >= 0) {
+                posix_spawn_file_actions_addclose(action.address(), i);
+            }
         }
     }
 
@@ -1481,7 +1536,7 @@ function subprocess_unix(options) {
                 break;
             case "done":
                 debugLog("Pipe "+name+" closed\n");
-                if (event.data.data != 0) workerExitCode = event.data.data;
+                if (event.data.data > 0) workerExitCode = event.data.data;
                 --readers;
                 if (readers == 0) cleanup();
                 break;
@@ -1623,7 +1678,8 @@ function subprocess_unix(options) {
             var rv = kill(pid, (hardKill ? 9: 15));
             cleanup(-1);
             return rv;
-        }
+        },
+        pid: pid
     }
 }
 
