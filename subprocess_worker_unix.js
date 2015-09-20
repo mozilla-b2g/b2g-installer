@@ -41,7 +41,7 @@
  */
 
 // Being a ChromeWorker object, implicitly uses the following:
-// Components.utils.import("resource://gre/modules/ctypes.jsm");
+// Cu.import("resource://gre/modules/ctypes.jsm");
 
 'use strict';
 
@@ -154,8 +154,7 @@ function writePipe(pipe, data) {
 
         let bytesWritten = libcFunc.write(pipe, pData, numBytes);
         if (bytesWritten != numBytes) {
-            closePipe();
-            libc.close();
+            closePipe(pipe);
             postMessage({ msg: "error", data: "error: wrote "+bytesWritten+" instead of "+numBytes+" bytes"});
             close();
         }

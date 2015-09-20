@@ -41,7 +41,7 @@
  */
 
 // Being a ChromeWorker object, implicitly uses the following:
-// Components.utils.import("resource://gre/modules/ctypes.jsm");
+// Cu.import("resource://gre/modules/ctypes.jsm");
 
 'use strict';
 
