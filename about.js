@@ -301,6 +301,17 @@ function buildRecoveryImg(fstab) {
   });
 }
 
+function getFileContexts(fstab) {
+  let bootPart = fstab["boot.img"];
+  let context = new FileUtils.File(OS.Path.join(bootPart.sourceDir, "RAMDISK", "file_contexts"));
+
+  if (context.exists()) {
+    return " -S " + context.path;
+  } else {
+    return null;
+  }
+}
+
 /**
  * Building the main filesystem partition image
  **/
@@ -310,11 +321,17 @@ function buildSystemImg(fstab) {
   console.debug("Will build system.img from",
                 fstabPart.sourceDir, "to", fstabPart.imageFile);
 
+  let context = getFileContexts(fstab);
+
   // it's in device/, not in device/content/SYSTEM/
   let cmdline = new File(OS.Path.join(fstabPart.sourceDir, "..", "..", kCmdlineFs));
 
   return getCmdlineFsArgs(cmdline, "system.img").then(args => {
     return new Promise((resolve, reject) => {
+      if (context) {
+        args += context;
+      }
+
       let options = {
         image: fstabPart.imageFile,
         source: fstabPart.sourceDir,
