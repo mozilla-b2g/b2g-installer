@@ -31,6 +31,7 @@ const kContent     = "content";
 const kBlobs       = "blobs";
 const kImages      = "images";
 
+const kAppIni    = "/system/b2g/application.ini"
 const CONFIG_URL = 'https://raw.githubusercontent.com/mozilla-b2g/b2g-installer-builds/master/builds.json';
 
 const kExpectedBlobFreeContent = [
@@ -547,14 +548,59 @@ function readRecoveryFstab(root) {
 
 /**
  * Checking if a device is already running a B2G system (existence of
- * /system/b2g/b2g file).
+ * /system/b2g/application.ini file).
  **/
 function checkDeviceIsB2G(device) {
   return new Promise((resolve, reject) => {
-    let target = "/system/b2g/b2g";
-    device.shell("ls " + target).then(lsOutput => {
+    device.shell("ls " + kAppIni).then(lsOutput => {
       console.debug("Read from fs:", lsOutput.trim());
-      resolve(lsOutput.trim() === target);
+      resolve(lsOutput.trim() === kAppIni);
+    });
+  });
+}
+
+function appIniToObj(ini) {
+  let obj = {};
+  let section = null;
+
+  ini.split("\n").forEach(line => {
+    // A line with ";" is a comment
+    if (line.startsWith(";")) {
+      return;
+    }
+
+    // A line "[XXX]" is Section XXX
+    let isSection = line.match(/\[(.*)\]/);
+    if (isSection) {
+      let sectionName = isSection[1];
+      section = sectionName;
+      obj[section] = {};
+      return;
+    }
+
+    let isEntry = line.match(/(.*)=(.*)/);
+    if (isEntry) {
+      let entryName  = isEntry[1];
+      let entryValue = isEntry[2];
+      obj[section][entryName] = entryValue;
+      return;
+    }
+  });
+
+  console.debug("Final value", obj);
+  return obj;
+}
+
+/**
+ * Read the content of application.ini. We assume this is a B2G device. If not,
+ * this will fail.
+ **/
+function readApplicationIni(device) {
+  return new Promise((resolve, reject) => {
+    device.shell("cat " + kAppIni).then(catOutput => {
+      let content = catOutput.trim();
+      console.debug("Read:", content);
+      resolve(appIniToObj(content));
     });
   });
 }
@@ -892,7 +938,7 @@ function ensureRootIfNeeded() {
   */
 let deviceContext = null;
 function deviceStep(evt) {
-  let adbDevice, runsB2G;
+  let adbDevice, runsB2G, applicationIni;
   return ensureRootIfNeeded().then(() => {
     return Device.get();
   }).then(device => {
@@ -901,13 +947,19 @@ function deviceStep(evt) {
     return checkDeviceIsB2G(adbDevice);
   }).then(isB2G => {
     runsB2G = isB2G;
-    console.log("B2G existence checked, pulling all blobs for", adbDevice);
+    console.log("B2G existence checked");
+    return readApplicationIni(adbDevice);
+  }).then(appIni => {
+    console.log("Read appIni: ", appIni);
+    applicationIni = appIni
+    console.log("Pulling all blobs for", adbDevice);
     return getBlobs(adbDevice,
                     distributionContext.rootDirImage,
                     distributionContext.blobsMap);
   }).then(() => {
     deviceContext = {
       adbDevice: adbDevice,
+      appIni: applicationIni,
       runsB2G: runsB2G
     };
   });
