@@ -2,7 +2,7 @@
 
 html {
   font-size: 16px;
-  font-family: 'Fira Sans';
+  font-family: Helvetica;
 }
 
 body {
@@ -14,22 +14,23 @@ body {
 }
 
 h1 {
-  font-size: 2em;
+  font-size: 3em;
   font-weight: 300;
   text-align: center;
-  margin: 180px 0 20px 0;
+  margin: 235px 0 25px 0;
 }
 
 h2 {
-  font-size: 1.4em;
+  font-size: 1.6em;
   font-weight: 500;
   text-align: center;
 }
 
 h3 {
-  font-size: 1.2em;
+  font-size: 1.1em;
   font-weight: 300;
-  text-align: center;
+  text-align: left;
+  line-height: 1.3;
 }
 
 h4 {
@@ -41,22 +42,32 @@ ul {
   list-style-type: none;
 }
 
+#title {
+  text-indent: -9999px;
+  background: url(Firefox_Installer_Title.png) no-repeat top center;
+}
+
 #wrapper {
-  max-width: 800px;
+  max-width: 950px;
   display: flex;
   overflow: hidden;
   margin: 0 auto;
 }
 
 #wrapper section {
-  background-size: 80px;
+  background-size: 100px;
   background-repeat: no-repeat;
   background-position: center top;
 }
 
 #wrapper section h2 {
-  margin-top: 100px;
+  margin-top: 120px;
 }
+
+#wrapper section h3 {
+  margin-bottom: 25px;
+}
+
 
 #wrapper section.connect {
   background-image: url(Connect_Icon_130x130.png);
@@ -64,7 +75,7 @@ ul {
 
 #wrapper section.select {
   background-image: url(Select_Icon_130x130.png);
-  margin: 0 20px;
+  margin: 0 90px;
 }
 
 #wrapper section.flash {
@@ -79,7 +90,7 @@ ul {
 }
 
 .connect, .flash {
-  text-align: center;
+  text-align: left;
 }
 
 #deviceId:empty::before {
@@ -92,19 +103,15 @@ ul {
   font-weight: 400;
 }
 
-#deviceId:not(:empty) {
-  background: url(checkmark.png) no-repeat left center;
-  background-size: 20px;
-  padding-left: 25px;
-}
-
 .build {
   display: flex;
   margin-bottom: 15px;
 }
 
 .description {
-  padding-left: 5px;
+  padding-left: 8px;
+  line-height: 18px;
+  margin-block-end: 10px;
 }
 
 .description span {
@@ -117,15 +124,22 @@ button {
   color: white;
   height: 35px;
   border-radius: 18px;
-  display: block;
+  position: left;
   margin: 0 auto;
   font-size: .9rem;
   font-style: italic;
-  padding: 0 10px;
+  padding: 0 20px;
 }
 
 #installBtn {
-  margin-bottom: 10px;
+  display: block;
+  margin: 0 0 10px 0;
+}
+
+#installBtn:active {
+  background: #FFFFFF;
+  border: 1px solid #c0c0c0;
+  color: #5E5E5E;
 }
 
 .dialog {
@@ -150,6 +164,15 @@ button {
   overflow: hidden;
 }
 
+#progressDialog h2 {
+  font-size: 1rem;
+  font-weight: bold;
+  background: #EEE;
+  border-bottom: 1px solid #CCC;
+  margin: 0;
+  padding: .8em;
+}
+
 #progressDialog li {
   position: relative;
 }
@@ -171,12 +194,12 @@ button {
 }
 
 #progressDialog li, #progressDialog p {
-  line-height: 1.5rem;
-  padding: 0 1rem;
+  line-height: 2rem;
+  padding: 0 2rem;
 }
 
 #progressDialog section {
-  width: 450px;
+  width: 380px;
 }
 
 #additionalProgress, #subAdditionalProgress {
@@ -193,12 +216,12 @@ button {
 
 progress::-moz-progress-bar {
   background: repeating-linear-gradient(135deg,
-                                        #00caf2 0px,
-                                        #00caf2 11%,
-                                        #b2f2ff 11%,
-                                        #b2f2ff 22%,
-                                        #a6a6a6 22%,
-                                        #a6a6a6 33%);
+  #00caf2 0px,
+  #00caf2 11%,
+  #b2f2ff 11%,
+  #b2f2ff 22%,
+  #a6a6a6 22%,
+  #a6a6a6 33%);
 }
 
 progress {
