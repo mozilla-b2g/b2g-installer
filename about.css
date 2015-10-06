@@ -94,7 +94,7 @@ ul {
 }
 
 #deviceId:empty::before {
-  content: 'No Device Detected';
+  content: 'No device detected';
 }
 
 #deviceId:empty {

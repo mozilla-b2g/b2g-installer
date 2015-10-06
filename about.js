@@ -13,7 +13,9 @@ Cu.import("resource://gre/modules/FileUtils.jsm");
 Cu.import("resource://gre/modules/ZipUtils.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 
-const { Devices } = Cu.import("resource://gre/modules/devtools/Devices.jsm");
+// In Firefox 44 and later, many DevTools modules were relocated.
+// See https://bugzil.la/912121
+const { Devices } = Cu.import("resource://gre/modules/devtools/shared/apps/Devices.jsm");
 const { OS } = Cu.import("resource://gre/modules/osfile.jsm", {});
 
 XPCOMUtils.defineLazyGetter(this, "cpmm", function() {
