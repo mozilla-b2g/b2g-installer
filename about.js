@@ -15,7 +15,7 @@ Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 
 // In Firefox 44 and later, many DevTools modules were relocated.
 // See https://bugzil.la/912121
-const { Devices } = Cu.import("resource://gre/modules/devtools/shared/apps/Devices.jsm");
+const { Devices } = Cu.import("resource://devtools/shared/apps/Devices.jsm");
 const { OS } = Cu.import("resource://gre/modules/osfile.jsm", {});
 
 XPCOMUtils.defineLazyGetter(this, "cpmm", function() {
@@ -750,6 +750,7 @@ function isSupportedConfig(device, supportedDevice) {
           (values.indexOf(propVal) !== -1) : (values === propVal);
 
         if (!isOk) {
+          console.error("Property match failure", prop, "expected one of", values, "but got", propVal)
           anyPropNotGood = true;
           break;
         }
