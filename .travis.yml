@@ -1,0 +1,11 @@
+script:
+- make
+
+deploy:
+  provider: releases
+  api_key:
+    secure: ZIt2QoA4JZqPKVgGqOmEZpOL79QWdAkvCedVHFXJormb15wrlECoY72LxYIUSyCcmHWdVS6nXdq2TkQObbtYgb5JigtVNyDLMR0h2IBcc3zkffld3MJ2OUZABIDhPAIfiOJRuq7zpcheWLvjZff46JlGrtVxdDGy4i62BFM4oe5erinWEQjbL3ypIAc1BAiqwIF7ViVD49DfCpNz4bjD4ENLtn31KC7CXEkXBiKXqMlKPw7KMhwnL3+9Y/P69N2UqR/fi9vJDuvoBfRnva+sEvLCVy2XhXJcosaNFxI5sO65MkPJY0PuBeG6JRWioPTpAljz9px2ZRWItP0kpIBFg9gZFt4sxvE8cXsDUM0wnc//dXb8l+WfU0/jCZh5PB4AP8NnQSO9DJ08keQf9NJKxKgO/K6vriXPQLlAs8cPv3E9eLHiDS+GNWOqFEZW5EDtUET6ab3HpqI66povAL27ZF2ZCzpezcrh5TyXE+k4ylM3mVZZPrsSUIFn5sQe8Cs4Zb7L378HwD0QeD1LQtWJSWClqgYjAW5oW13uS1Nxk+MYYkp7sNR/d8zk6BE6lBlO0MMvxAuOs3qkIbNxxhUhXQ13Ud5CVrEhdJ10NiyuRj62IJeSnVZuJDZ4TD/I3xOQQHN4mUIb4qclQDTm2b2Uo65Op36rAABMczgE57RwfP8=
+  file: b2g-installer-*.xpi
+  on:
+    repo: mozilla-b2g/b2g-installer
+    tags: true
