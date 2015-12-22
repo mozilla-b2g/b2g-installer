@@ -27,8 +27,8 @@ B2GInstaller.prototype = {
 
   QueryInterface: XPCOMUtils.generateQI([Ci.nsIB2GInstaller]),
 
-  newChannel : function(aURI) {
-    let chan = Services.io.newChannelFromURI(this.uri);
+  newChannel : function(aURI, aLoadInfo) {
+    let chan = Services.io.newChannelFromURIWithLoadInfo(this.uri, aLoadInfo);
     chan.originalURI = aURI;
     return chan;
   },
