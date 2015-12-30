@@ -48,9 +48,7 @@ let $ = document.querySelectorAll.bind(document);
 function xhr(url, opts) {
   opts = opts || {};
   return new Promise(function(resolve, reject) {
-
-    let xhr = Cc["@mozilla.org/xmlextras/xmlhttprequest;1"]
-      .createInstance(Ci.nsIXMLHttpRequest);
+    let xhr = new XMLHttpRequest();
 
     let handler = ev => {
       evf(m => xhr.removeEventListener(m, handler, !1));
@@ -70,11 +68,8 @@ function xhr(url, opts) {
 
     xhr.mozBackgroundRequest = true;
     xhr.open('GET', url, true);
-    xhr.channel.loadFlags |= Ci.nsIRequest.LOAD_ANONYMOUS |
-      Ci.nsIRequest.LOAD_BYPASS_CACHE |
-      Ci.nsIRequest.INHIBIT_PERSISTENT_CACHING;
     xhr.responseType = ('responseType' in opts) ? opts.responseType : 'json';
-    xhr.send(null);
+    xhr.send();
   });
 }
 
@@ -779,9 +774,7 @@ let Device = (function() {
   let evts = {};
 
   function connected() {
-
     devicePromise = new Promise((resolve, reject) => {
-
       let devices = Devices.available();
       if (!devices.length) {
         reject();
@@ -824,15 +817,22 @@ let Device = (function() {
   }
 
   function init() {
-    Devices.on('register', connected.bind(null));
-    Devices.on('unregister', disconnected.bind(null));
+    Devices.on('register',   connected);
+    Devices.on('unregister', disconnected);
     Devices.emit('adb-start-polling');
+  }
+
+  function uninit() {
+    Devices.emit('adb-stop-polling');
+    Devices.off('register',   connected);
+    Devices.off('unregister', disconnected);
   }
 
   return {
     get: get,
     on: on,
-    init: init
+    init: init,
+    uninit: uninit
   };
 
 })();
@@ -1232,7 +1232,7 @@ function deviceConnected() {
     currentStep('select');
   }).catch(err => {
     console.error(err);
-  });;
+  });
 }
 
 function deviceDisconnected() {
@@ -1299,6 +1299,7 @@ addEventListener("load", function load() {
 
 addEventListener("unload", function unload() {
   removeEventListener("unload", unload, false);
+  Device.uninit();
   Devices.emit("adb-stop-polling");
   Devices.emit("fastboot-stop-polling");
 }, false);
