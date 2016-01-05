@@ -5,6 +5,6 @@ b2g-installer.jar:
   content/		(*.xhtml)
   content/		(*.png)
   content/Fira/		(Fira/*)
-  content/linux/	(linux/*)
-  content/linux64/	(linux64/*)
-  content/mac64/	(mac64/*)
+% content/linux/	(linux/*)	abi=Linux_x86-gcc3
+% content/linux64/	(linux64/*)	abi=Linux_x86_64-gcc3
+% content/mac64/	(mac64/*)	abi=Darwin_x86_64-gcc3

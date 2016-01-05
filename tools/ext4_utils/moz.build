@@ -6,7 +6,13 @@
 
 Program('make_ext4fs')
 
-DIST_INSTALL = False
+if (CONFIG['OS_TARGET'] == 'Linux' and CONFIG['CPU_ARCH'] == 'x86'):
+    FINAL_TARGET = 'dist/xpi-stage/b2g-installer/browser/chrome/b2g-installer/content/linux'
+elif (CONFIG['OS_TARGET'] == 'Linux' and CONFIG['CPU_ARCH'] == 'x86_64'):
+    FINAL_TARGET = 'dist/xpi-stage/b2g-installer/browser/chrome/b2g-installer/content/linux64'
+elif (CONFIG['OS_TARGET'] == 'Darwin' and CONFIG['CPU_ARCH'] == 'x86_64'):
+    FINAL_TARGET = 'dist/xpi-stage/b2g-installer/browser/chrome/b2g-installer/content/mac64'
+
 USE_STATIC_LIBS = True
 ALLOW_COMPILER_WARNINGS = True
 
