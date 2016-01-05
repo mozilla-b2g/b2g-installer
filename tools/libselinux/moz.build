@@ -1,0 +1,40 @@
+# -*- Mode: python; c-basic-offset: 4; indent-tabs-mode: nil; tab-width: 40 -*-
+# vim: set filetype=python:
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+Library('selinux')
+
+DIST_INSTALL = False
+USE_STATIC_LIBS = True
+ALLOW_COMPILER_WARNINGS = True
+
+LOCAL_INCLUDES += [
+    '../pcre',
+    'include',
+]
+
+CFLAGS += [
+    '-DHOST',
+]
+
+if CONFIG['OS_TARGET'] == 'Darwin':
+    CFLAGS += [
+        '-DDARWIN',
+    ]
+
+USE_LIBS += [
+    'pcre'
+]
+
+# common_HOST_FILES
+SOURCES += [
+    'src/callbacks.c',
+    'src/check_context.c',
+    'src/freecon.c',
+    'src/init.c',
+    'src/label.c',
+    'src/label_android_property.c',
+    'src/label_file.c',
+]

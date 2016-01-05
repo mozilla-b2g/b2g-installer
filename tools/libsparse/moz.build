@@ -1,0 +1,29 @@
+# -*- Mode: python; c-basic-offset: 4; indent-tabs-mode: nil; tab-width: 40 -*-
+# vim: set filetype=python:
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+Library('sparse')
+
+DIST_INSTALL = False
+USE_STATIC_LIBS = True
+ALLOW_COMPILER_WARNINGS = True
+
+LOCAL_INCLUDES += [
+    '../include',
+    'include',
+]
+
+USE_LIBS += [
+    'zlib'
+]
+
+SOURCES += [
+    'backed_block.c',
+    'output_file.c',
+    'sparse.c',
+    'sparse_crc32.c',
+    'sparse_err.c',
+    'sparse_read.c',
+]

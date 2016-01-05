@@ -1,0 +1,45 @@
+# -*- Mode: python; c-basic-offset: 4; indent-tabs-mode: nil; tab-width: 40 -*-
+# vim: set filetype=python:
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+Program('make_ext4fs')
+
+DIST_INSTALL = False
+USE_STATIC_LIBS = True
+ALLOW_COMPILER_WARNINGS = True
+
+LOCAL_INCLUDES += [
+    '../include',
+    '../libselinux/include',
+    '../libsparse/include',
+]
+
+CFLAGS += [
+    '-DHOST',
+    '-DANDROID',
+]
+
+USE_LIBS += [
+    'selinux',
+    'sparse',
+    'zlib',
+]
+
+SOURCES += [
+    'allocate.c',
+    'canned_fs_config.c',
+    'contents.c',
+    'crc16.c',
+    'ext4_sb.c',
+    'ext4_utils.c',
+    'ext4fixup.c',
+    'extent.c',
+    'indirect.c',
+    'make_ext4fs.c',
+    'make_ext4fs_main.c',
+    'sha1.c',
+    'uuid.c',
+    'wipe.c',
+]
