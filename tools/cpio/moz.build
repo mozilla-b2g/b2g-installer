@@ -4,23 +4,19 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-XPI_NAME = 'b2g-installer'
+Program('mkbootfs')
 
-JAR_MANIFESTS += ['jar.mn']
+DIST_INSTALL = False
+USE_STATIC_LIBS = True
 
-USE_EXTENSION_MANIFEST = True
-
-FINAL_TARGET_FILES += [
-    'bootstrap.js',
-    'install.rdf',
+LOCAL_INCLUDES += [
+    '../include'
 ]
 
-DIRS += [
-    'tools/cpio',
-    'tools/mkbootimg',
-    'tools/libmincrypt',
-    'tools/libselinux',
-    'tools/libsparse',
-    'tools/ext4_utils',
-    'tools/pcre',
+CFLAGS += [
+    '-Werror',
+]
+
+SOURCES += [
+    'mkbootfs.c'
 ]
