@@ -1299,6 +1299,7 @@ addEventListener("load", function load() {
 
 addEventListener("unload", function unload() {
   removeEventListener("unload", unload, false);
+  $('#userBuild')[0].mozSetFileNameArray([], 0);
   Device.uninit();
   Devices.emit("adb-stop-polling");
   Devices.emit("fastboot-stop-polling");
