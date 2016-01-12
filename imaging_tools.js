@@ -53,11 +53,20 @@ function ImagingTools() {
 
 ImagingTools.prototype = {
   init: function() {
+    console.debug("Doing ImagingTools.init()");
     this.detectBinaries();
-
+    ppmm.addMessageListener("B2GInstaller:MainProcess:Cleanup", this);
     ppmm.addMessageListener("B2GInstaller:MainProcess:BuildRamdisk", this);
     ppmm.addMessageListener("B2GInstaller:MainProcess:BuildBootable", this);
     ppmm.addMessageListener("B2GInstaller:MainProcess:BuildExt4FS", this);
+  },
+
+  uninit: function() {
+    console.debug("Doing ImagingTools.uninit()");
+    ppmm.removeMessageListener("B2GInstaller:MainProcess:Cleanup", this);
+    ppmm.removeMessageListener("B2GInstaller:MainProcess:BuildRamdisk", this);
+    ppmm.removeMessageListener("B2GInstaller:MainProcess:BuildBootable", this);
+    ppmm.removeMessageListener("B2GInstaller:MainProcess:BuildExt4FS", this);
   },
 
   detectBinaries: function() {
@@ -116,6 +125,10 @@ ImagingTools.prototype = {
 
     let options = msg.data;
     switch (msg.name) {
+      case "B2GInstaller:MainProcess:Cleanup":
+        this.uninit();
+        break;
+
       case "B2GInstaller:MainProcess:BuildRamdisk":
         this.executeTool("mkbootfs", options).then(res => {
           msg.target.sendAsyncMessage("B2GInstaller:MainProcess:BuildRamdisk:Return", { res: res, req: options });
