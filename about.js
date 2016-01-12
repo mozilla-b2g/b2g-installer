@@ -1304,3 +1304,7 @@ addEventListener("unload", function unload() {
   Devices.emit("adb-stop-polling");
   Devices.emit("fastboot-stop-polling");
 }, false);
+
+addEventListener("beforeunload", function beforeUnload(e) {
+  e.preventDefault();
+}, false);
