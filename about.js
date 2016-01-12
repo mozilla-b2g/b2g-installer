@@ -1184,20 +1184,26 @@ function downloadBuild() {
 }
 
 function install() {
-  downloadProgress('downloading');
-  downloadBuild()
-    .then(step('extracting', distributionStep))
-    .then(step('fetching', deviceStep))
-    .then(step('creating', imageStep))
-    .then(step('flashing', flashStep))
-    .then(() => {
-      $('#progressDialog')[0].style.display = 'none';
-      $('#confirmDialog')[0].style.display = 'block';
-    }).catch(e => {
-      console.error('Installing failed');
-      console.error(e);
-      return Promise.reject();
-    });
+  return new Promise((resolve, reject) => {
+    _isRisky = true;
+    downloadProgress('downloading');
+    downloadBuild()
+      .then(step('extracting', distributionStep))
+      .then(step('fetching', deviceStep))
+      .then(step('creating', imageStep))
+      .then(step('flashing', flashStep))
+      .then(() => {
+        _isRisky = false;
+        $('#progressDialog')[0].style.display = 'none';
+        $('#confirmDialog')[0].style.display = 'block';
+        return resolve();
+      }).catch(e => {
+        _isRisky = false;
+        console.error('Installing failed');
+        console.error(e);
+        return reject();
+      });
+  });
 }
 
 
@@ -1304,9 +1310,20 @@ addEventListener("load", function load() {
   downloadBuildsList();
 }, false);
 
+var _isRisky = false;
+function isRisky() {
+  return _isRisky;
+}
+
 addEventListener("beforeunload", function beforeunload(e) {
-  removeEventListener("beforeunload", beforeunload);
   console.debug("Received beforeunload event", e);
+  if (isRisky()) {
+    console.debug("Calling e.preventDefault()", e);
+    e.preventDefault();
+    return;
+  }
+
+  removeEventListener("beforeunload", beforeunload);
   cpmm.sendSyncMessage("B2GInstaller:MainProcess:Cleanup", {});
 });
 
