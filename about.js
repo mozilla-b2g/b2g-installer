@@ -1304,8 +1304,16 @@ addEventListener("load", function load() {
   downloadBuildsList();
 }, false);
 
-addEventListener("unload", function unload() {
+addEventListener("beforeunload", function beforeunload(e) {
+  removeEventListener("beforeunload", beforeunload);
+  console.debug("Received beforeunload event", e);
+  cpmm.sendSyncMessage("B2GInstaller:MainProcess:Cleanup", {});
+});
+
+addEventListener("unload", function unload(e) {
   removeEventListener("unload", unload, false);
+  console.debug("Received unload event", e);
+
   $('#userBuild')[0].mozSetFileNameArray([], 0);
   Device.uninit();
   Devices.emit("adb-stop-polling");

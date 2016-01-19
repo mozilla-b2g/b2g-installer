@@ -15,8 +15,7 @@ Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 
 let imagingToolsCls = require("./imaging_tools.js");
-let imagingTools = new imagingToolsCls();
-imagingTools.init();
+let imagingTools = null;
 
 function B2GInstaller() {
 }
@@ -32,6 +31,13 @@ B2GInstaller.prototype = {
   newChannel : function(aURI, aLoadInfo) {
     let chan = Services.io.newChannelFromURIWithLoadInfo(this.uri, aLoadInfo);
     chan.originalURI = aURI;
+
+    if (!imagingTools) {
+      imagingTools = new imagingToolsCls();
+    }
+
+    imagingTools.init();
+
     return chan;
   },
 
