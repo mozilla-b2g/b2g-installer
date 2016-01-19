@@ -11,6 +11,7 @@ const Ci = Components.interfaces;
 Cu.import("resource://gre/modules/NetUtil.jsm");
 Cu.import("resource://gre/modules/FileUtils.jsm");
 Cu.import("resource://gre/modules/ZipUtils.jsm");
+Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 
 // In Firefox 44 and later, many DevTools modules were relocated.
@@ -33,8 +34,14 @@ const kContent     = "content";
 const kBlobs       = "blobs";
 const kImages      = "images";
 
-const kAppIni    = "/system/b2g/application.ini"
-const CONFIG_URL = 'https://raw.githubusercontent.com/mozilla-b2g/b2g-installer-builds/master/builds.json';
+const kAppIni      = "/system/b2g/application.ini"
+
+let CONFIG_URL;
+try {
+  CONFIG_URL = Services.prefs.getCharPref("extensions.b2g-installer@mozilla.org.builds");
+} catch (e) {
+  CONFIG_URL = "https://raw.githubusercontent.com/mozilla-b2g/b2g-installer-builds/master/builds.json";
+}
 
 const kExpectedBlobFreeContent = [
   kBlobFree, kBlobsInject, kCmdlineFs, kDevicesJson, kDeviceRecovery

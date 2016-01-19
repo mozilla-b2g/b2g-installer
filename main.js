@@ -14,7 +14,9 @@ let Cm = require("chrome").components.manager.QueryInterface(Ci.nsIComponentRegi
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 
-let imagingTools = require("./imaging_tools.js");
+let imagingToolsCls = require("./imaging_tools.js");
+let imagingTools = new imagingToolsCls();
+imagingTools.init();
 
 function B2GInstaller() {
 }

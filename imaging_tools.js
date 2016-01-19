@@ -45,9 +45,10 @@ function gzipCompressString(string, obs) {
 }
 
 function ImagingTools() {
-  this._tools = [ "mkbootfs", "mkbootimg", "make_ext4fs" ];
-  this._paths = {};
-  this.init();
+  this._tools    = [ "mkbootfs", "mkbootimg", "make_ext4fs" ];
+  this._baseURI  = "resource://b2g-installeratmozilla.org/";
+  this._paths    = {};
+  this._platform = Services.appinfo.OS;
 }
 
 ImagingTools.prototype = {
@@ -60,9 +61,8 @@ ImagingTools.prototype = {
   },
 
   detectBinaries: function() {
-    let platform = Services.appinfo.OS;
-    let uri = "resource://b2g-installeratmozilla.org/";
-
+    let uri      = this._baseURI;
+    let platform = this._platform;
     console.log("Checking existence of", this._tools, "for", platform, "within", uri);
 
     this._tools.forEach(tool => {
@@ -82,6 +82,10 @@ ImagingTools.prototype = {
         case "WINNT":
           system = "win32";
           binary = tool + ".exe";
+          break;
+        case "XPCSHELL":
+          system = ".";
+          binary = tool;
           break;
         default:
           console.error("Unsupported platform", platform);
@@ -277,6 +281,6 @@ ImagingTools.prototype = {
   }
 };
 
-module.exports = new ImagingTools();
+module.exports = ImagingTools;
 
 /* vim: set et ts=2 sw=2 : */
