@@ -44,44 +44,28 @@ B2GInstaller.prototype = {
   getURIFlags: function(aURI) 0
 };
 
-let buildID = Services.appinfo.appBuildID;
-let buildDate = new Date(buildID.slice(0,4),     // year
-                         buildID.slice(4,6) - 1, // months are zero-based.
-                         buildID.slice(6,8),     // day
-                         buildID.slice(8,10),    // hour
-                         buildID.slice(10,12),   // min
-                         buildID.slice(12,14))   // ms
-
-// Bug 1059081 landed on May 19th, 2015
-let goodBuild = new Date(2015, 4, 20, 0, 0, 0);
-
-if (buildDate < goodBuild) {
-  console.error("Your Firefox seems too old (" + buildID + "): bug 1059081 " +
-                "and 1164290 are fixed in builds after 2015, may 19th.");
-} else {
-  (function registerComponents() {
-    let cls = B2GInstaller;
-    try {
-      const factory = {
-        _cls: cls,
-        createInstance: function(outer, iid) {
-          if (outer) {
-            throw Cr.NS_ERROR_NO_AGGREGATION;
-          }
-          return new cls();
+(function registerComponents() {
+  let cls = B2GInstaller;
+  try {
+    const factory = {
+      _cls: cls,
+      createInstance: function(outer, iid) {
+        if (outer) {
+          throw Cr.NS_ERROR_NO_AGGREGATION;
         }
-      };
-      Cm.registerFactory(cls.prototype.classID, cls.prototype.classDescription, cls.prototype.contractID, factory);
-      unload(function() {
-        Cm.unregisterFactory(factory._cls.prototype.classID, factory);
-      });
-    }
-    catch (ex) {
-      console.error("Failed to register module: " + cls.name + " -- " + ex + "\n");
-    }
-  })();
+        return new cls();
+      }
+    };
+    Cm.registerFactory(cls.prototype.classID, cls.prototype.classDescription, cls.prototype.contractID, factory);
+    unload(function() {
+      Cm.unregisterFactory(factory._cls.prototype.classID, factory);
+    });
+  }
+  catch (ex) {
+    console.error("Failed to register module: " + cls.name + " -- " + ex + "\n");
+  }
+})();
 
-  console.log("B2GInstaller ready\n");
-}
+console.log("B2GInstaller ready\n");
 
 /* vim: set et ts=2 sw=2 : */

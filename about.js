@@ -18,6 +18,7 @@ Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 // See https://bugzil.la/912121
 const { Devices } = Cu.import("resource://devtools/shared/apps/Devices.jsm");
 const { OS } = Cu.import("resource://gre/modules/osfile.jsm", {});
+var { AddonManager } = Cu.import("resource://gre/modules/AddonManager.jsm");
 
 XPCOMUtils.defineLazyGetter(this, "cpmm", function() {
   return Cc["@mozilla.org/childprocessmessagemanager;1"]
@@ -1282,6 +1283,111 @@ function downloadBuildsList() {
   });
 }
 
+function verifyADBHelper() {
+  return new Promise((resolve, reject) => {
+    console.debug("Verifying ADB Helper!");
+    AddonManager.getAddonByID("adbhelper@mozilla.org", (addon) => {
+      console.debug("ADBHelper:", addon);
+      if (!addon) {
+        console.error("Unable to find ADB Helper addon");
+        return reject(new Error("ADBHELPER_MISSING"));
+      }
+
+      console.debug("ADBHelper status:", (addon && !addon.userDisabled));
+      if (addon.userDisabled) {
+        console.error("ADB Helper addon has been disabled");
+        return reject(new Error("ADBHELPER_DISABLED"));
+      }
+
+      console.debug("ADBHelper version:", addon.version);
+      if (addon.version !== "0.8.6") {
+        console.error("ADB Helper addon has wrong version");
+        return reject(new Error("ADBHELPER_VERSION"));
+      }
+
+      return resolve();
+    });
+  });
+}
+
+function verifyGecko() {
+  return new Promise((resolve, reject) => {
+    console.debug("Verifying Gecko!", Services.appinfo);
+    let buildID = Services.appinfo.appBuildID;
+    let buildDate = new Date(buildID.slice(0,4),     // year
+                             buildID.slice(4,6) - 1, // months are zero-based.
+                             buildID.slice(6,8),     // day
+                             buildID.slice(8,10),    // hour
+                             buildID.slice(10,12),   // min
+                             buildID.slice(12,14))   // ms
+
+    // Limiting to mozilla-central
+    // Bug 1059081 landed on May 19th, 2015
+    // Bug 1207090 landed on September 30rd, 2015
+    let goodBuild = new Date(2015, 9, 2, 0, 0, 0); // 0-based months!
+    if (buildDate < goodBuild) {
+      console.debug("Build is too old", buildDate, goodBuild);
+      return reject(new Error("GECKO_TOOOLD"));
+    }
+
+    let isLinuxOk  = Services.appinfo.OS === "Linux";
+    let isDarwinOk = Services.appinfo.OS === "Darwin"
+                     && Services.appinfo.XPCOMABI === "x86_64-gcc3";
+    if (!isLinuxOk && !isDarwinOk) {
+      console.debug("Only Linux and (Darwin x86-64) are supported");
+      return reject(new Error("GECKO_UNSUPPORTED_OS_ARCH"));
+    }
+
+    let isNightly = !Services.appinfo.isReleaseBuild
+                    && (Services.appinfo.platformVersion.match("a") !== null);
+    if (!isNightly) {
+      return reject(new Error("GECKO_UNSUPPORTED_BUILD"));
+    }
+
+    return resolve();
+  });
+}
+
+function ensureEnvironment() {
+  return verifyGecko()
+    .then(() => console.debug("Gecko is good"))
+    .then(() => verifyADBHelper())
+    .then(() => console.debug("ADB Helper is good"))
+    .catch((err) => {
+      console.debug("Error!!!", err);
+
+      let msgClass;
+      switch(err.message) {
+        case "ADBHELPER_MISSING":
+        case "ADBHELPER_DISABLED":
+        case "ADBHELPER_VERSION":
+          msgClass = "adbhelper";
+          break;
+
+        case "GECKO_TOOOLD":
+          msgClass = "gecko-tooold";
+          break;
+
+        case "GECKO_UNSUPPORTED_OS_ARCH":
+          msgClass = "gecko-unsupported-os-arch";
+          break;
+
+        case "GECKO_UNSUPPORTED_BUILD":
+          msgClass = "gecko-unsupported-build";
+          break;
+
+        default:
+          msgClass = "unknown";
+          break;
+      }
+
+      $('#errorDisplay')[0].style.display    = 'flex';
+      $('#errorDisplay')[0].style.visibility = 'visible';
+      $('.' + msgClass)[0].style.display     = 'block';
+      $('.' + msgClass)[0].style.visibility  = 'visible';
+    });
+}
+
 addEventListener("offline", e => {
   console.log("offline");
   showOffline(true);
@@ -1308,6 +1414,8 @@ addEventListener("load", function load() {
   Device.init();
 
   downloadBuildsList();
+
+  ensureEnvironment();
 }, false);
 
 var _isRisky = false;
