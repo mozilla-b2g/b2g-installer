@@ -1,0 +1,107 @@
+<!DOCTYPE HTML>
+<html>
+<!--
+https://bugzilla.mozilla.org/show_bug.cgi?id=1235459
+-->
+<head>
+  <meta charset="utf-8">
+  <title>Test for Bug </title>
+  <script type="application/javascript" src="chrome://mochikit/content/tests/SimpleTest/SimpleTest.js"></script>
+  <script type="application/javascript" src="http://mochi.test:8888/chrome/browser/extensions/b2g-installer/test/mochitest/common.js"></script>
+  <link rel="stylesheet" type="text/css" href="chrome://mochikit/content/tests/SimpleTest/test.css"/>
+  </script>
+</head>
+<body>
+<p id="display"></p>
+<div id="content" style="display: none">
+</div>
+<div id="container"></div>
+<pre id="test">
+  <script type="application/javascript">
+
+  "use strict";
+
+  function checkElement(id) {
+    let e = c.getElementById(id);
+    ok(e, "has existing node", id);
+    return e;
+  }
+
+  function test_no_device() {
+    return new Promise((resolve, reject) => {
+      let deviceId = checkElement("deviceId");
+      is(deviceId.textContent, "", "No device detected");
+      resolve();
+    });
+  }
+
+  function test_devices() {
+    return new Promise((resolve, reject) => {
+      let devices = checkElement("devices");
+      is(devices.textContent, "", "No device build added");
+      let userBuild = checkElement("userBuild");
+      is(userBuild.textContent, "", "No user build added");
+      resolve();
+    });
+  }
+
+  function test_flash() {
+    return new Promise((resolve, reject) => {
+      checkElement("installBtn");
+      checkElement("keep-b2g-data");
+      resolve();
+    });
+  }
+
+  function test_progress() {
+    return new Promise((resolve, reject) => {
+      ["progressDialog",  "additionalProgress", "subAdditionalProgress"].forEach(id => {
+        checkElement(id);
+      });
+
+      ["downloading", "extracting", "fetching", "creating", "flashing"].forEach(e => {
+        let all = c.getElementsByClassName(e);
+        is(all.length, 1, "has one instance of class: " + e);
+      });
+
+      resolve();
+    });
+  }
+
+  function test_end() {
+    return new Promise((resolve, reject) => {
+      checkElement("confirmDialog");
+      resolve();
+    });
+  }
+
+  function test_devicesJSM() {
+    return new Promise((resolve, reject) => {
+      ok(w.Devices, "has Devices.jsm");
+      ok(('available' in w.Devices), "Devices.available()");
+      ok(('on' in w.Devices), "Devices.on()");
+      ok(('emit' in w.Devices), "Devices.emit()");
+      ok(('_devices' in w.Devices), "Devices._devices");
+      is(typeof(w.Devices._devices), "object", "Devices._devices is an object");
+      is(Object.keys(w.Devices._devices).length, 0, "Devices._devices has no element");
+      resolve();
+    });
+  }
+
+  function runTest() {
+    populateAboutB2GInstaller()
+      .then(() => test_no_device())
+      .then(() => test_devices())
+      .then(() => test_flash())
+      .then(() => test_progress())
+      .then(() => test_end())
+      .then(() => test_devicesJSM())
+      .then(() => SimpleTest.finish());
+  }
+
+  setPrefsAndRunTests();
+
+  </script>
+</pre>
+</body>
+</html>

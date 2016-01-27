@@ -1,0 +1,143 @@
+<!DOCTYPE HTML>
+<html>
+<!--
+https://bugzilla.mozilla.org/show_bug.cgi?id=1235459
+-->
+<head>
+  <meta charset="utf-8">
+  <title>Test for Bug </title>
+  <script type="application/javascript" src="chrome://mochikit/content/tests/SimpleTest/SimpleTest.js"></script>
+  <script type="application/javascript" src="http://mochi.test:8888/chrome/browser/extensions/b2g-installer/test/mochitest/common.js"></script>
+  <link rel="stylesheet" type="text/css" href="chrome://mochikit/content/tests/SimpleTest/test.css"/>
+  </script>
+</head>
+<body>
+<p id="display"></p>
+<div id="content" style="display: none">
+</div>
+<div id="container"></div>
+<pre id="test">
+  <script type="application/javascript" id="fake-adb"></script>
+  <script type="application/javascript">
+
+  "use strict";
+
+  var fakeAdbDevice;
+
+  function populateFakeDevices() {
+    return loadFakeDevice().then(() => {
+      fakeAdbDevice = new FakeAdbDevice();
+    });
+  }
+
+  function test_plugAdbDevice() {
+    return new Promise((resolve, reject) => {
+      w.Devices.register(fakeAdbDevice._serial, fakeAdbDevice);
+      setTimeout(() => resolve());
+    });
+  }
+
+  function assert_select_build(id, nbExpected, nameExpected, descExpected) {
+    let devices = c.getElementById("devices");
+    ok(devices, "has devices node");
+    is(devices.childNodes.length, nbExpected, "two builds available");
+
+    let e = devices.getElementsByTagName("input")[id];
+    ok(e, "has build id", id);
+    is(e.type, "radio", "input is a radio button");
+    e.click();
+
+    let name = devices.getElementsByTagName("h4")[id];
+    ok(name, "has name for build id", id);
+    is(name.textContent, nameExpected, "has expected build name");
+
+    let desc = devices.getElementsByTagName("span")[id];
+    ok(desc, "has desc for build id", id);
+    is(desc.textContent, descExpected, "has expected build desc");
+
+    return e;
+  }
+
+  // status: enabled=true, disabled=false
+  function assert_flash(status) {
+    let step = c.getElementById("wrapper").dataset.currentStep;
+
+    if (status === true) {
+      is(step, "flash", "currentStep is flash");
+    }
+
+    if (status === false) {
+      is(step, "select", "currentStep is select");
+    }
+  }
+
+  function test_select_userdebug() {
+    return new Promise((resolve, reject) => {
+      assert_flash(false);
+      assert_select_build(0, 2, "nightly userdebug", "Nightly userdebug build freshly baked from TaskCluster");
+      assert_flash(true);
+
+      resolve();
+    })
+  }
+
+  function test_select_eng() {
+    return new Promise((resolve, reject) => {
+      assert_flash(false);
+      assert_select_build(1, 2, "nightly eng", "Nightly eng build freshly baked from TaskCluster");
+      assert_flash(true);
+
+      resolve();
+    })
+  }
+
+  function test_select_custom() {
+    return test_plugAdbDevice().then(() => {
+      return new Promise((resolve, reject) => {
+        assert_flash(false);
+
+        // We don't really need the file to exists for now
+        let files = [ "/usr/bin/ls" ];
+        let user = c.getElementById("userBuild");
+        ok(user, "has userbuild node");
+
+        user.mozSetFileNameArray(files, files.length);
+        user.dispatchEvent(new Event('change'));
+
+        setTimeout(() => {
+          assert_select_build(2, 3, "ls", "");
+          assert_flash(true);
+          return test_unplugAdbDevice().then(() => resolve());
+        });
+      });
+    });
+  }
+
+  function test_unplugAdbDevice() {
+    return new Promise((resolve, reject) => {
+      w.Devices.unregister(fakeAdbDevice._serial);
+      resolve();
+    });
+  }
+
+  function test_plug_assert_unplug(target) {
+    return test_plugAdbDevice()
+      .then(() => target())
+      .then(() => test_unplugAdbDevice());
+  }
+
+  function runTest() {
+    populateAboutB2GInstaller()
+      .then(() => populateFakeDevices())
+      .then(() => test_plug_assert_unplug(test_select_userdebug))
+      .then(() => test_plug_assert_unplug(test_select_eng))
+      .then(() => test_select_custom())
+      .then(() => SimpleTest.finish());
+  }
+
+  setPrefsAndRunTests();
+
+  </script>
+</pre>
+</body>
+</html>
