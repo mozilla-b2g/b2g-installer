@@ -1,0 +1,45 @@
+[
+  {
+    "id": "Mochitest Fake Device",
+    "builds": [
+      {
+        "name": "nightly userdebug",
+        "description": "Nightly userdebug build freshly baked from TaskCluster",
+        "url": "http://mochi.test:8888/chrome/browser/extensions/b2g-installer/test/mochitest/fake.nightly-userdebug.zip"
+      },
+      {
+        "name": "nightly eng",
+        "description": "Nightly eng build freshly baked from TaskCluster",
+        "url": "http://mochi.test:8888/chrome/browser/extensions/b2g-installer/test/mochitest/fake.nightly-eng.zip"
+      }
+    ],
+    "adb": {
+      "ro.product.model": [ "FakeDevice 1.0", "FakeDevice 2.0" ],
+      "ro.bootloader": "1.0.0",
+      "ro.build.id": "L"
+    },
+    "fastboot": {
+      "product": [ "FD1", "FD2" ],
+      "version-bootloader": [ "UBoot-1.0", "UBoot-2.0" ]
+    }
+  },
+  {
+    "id": "Mochitest Fake Device (with DT)",
+    "builds": [
+      {
+        "name": "nightly userdebug",
+        "description": "Nightly userdebug build freshly baked from TaskCluster",
+        "url": "http://mochi.test:8888/chrome/browser/extensions/b2g-installer/test/mochitest/fake_dt.nightly-userdebug.zip"
+      }
+    ],
+    "adb": {
+      "ro.product.model": [ "FakeDevice 3.0" ],
+      "ro.bootloader": "1.0.0",
+      "ro.build.id": "L"
+    },
+    "fastboot": {
+      "product": [ "FD3" ],
+      "version-bootloader": [ "UBoot-1.0", "UBoot-2.0" ]
+    }
+  }
+]

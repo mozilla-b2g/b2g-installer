@@ -1,0 +1,66 @@
+<!DOCTYPE HTML>
+<html>
+<!--
+https://bugzilla.mozilla.org/show_bug.cgi?id=1235459
+-->
+<head>
+  <meta charset="utf-8">
+  <title>Test for Bug </title>
+  <script type="application/javascript" src="chrome://mochikit/content/tests/SimpleTest/SimpleTest.js"></script>
+  <script type="application/javascript" src="http://mochi.test:8888/chrome/browser/extensions/b2g-installer/test/mochitest/common.js"></script>
+  <script type="application/javascript" src="http://mochi.test:8888/chrome/browser/extensions/b2g-installer/test/mochitest/flash_device.js"></script>
+  <link rel="stylesheet" type="text/css" href="chrome://mochikit/content/tests/SimpleTest/test.css"/>
+  </script>
+</head>
+<body>
+<p id="display"></p>
+<div id="content" style="display: none">
+</div>
+<div id="container"></div>
+<pre id="test">
+  <script type="application/javascript" id="fake-adb"></script>
+  <script type="application/javascript">
+
+  "use strict";
+
+  var deviceBlobfree;
+
+  function continue_assert_finish() {
+    test_unplugAdbDevice().then(() => {
+      is(fakeFastbootDevice._flashed.length, 4, "Flashed four partitions");
+      is(fakeFastbootDevice._flashed[0].name, "system", "Flashed system partition");
+      is(fakeFastbootDevice._flashed[1].name, "userdata", "Flashed userdata partition");
+      is(fakeFastbootDevice._flashed[2].name, "boot", "Flashed boot partition");
+      is(fakeFastbootDevice._flashed[3].name, "recovery", "Flashed recovery partition");
+
+      let sizes = {
+        zipFile:     1264564,
+        bootImg:     497664,
+        recoveryImg: 757760,
+        dataImg:     100779512,
+        systemImg:   16093632
+      };
+
+      return cleanupTmpDir(deviceBlobfree, true, sizes);
+    }).then(() => SimpleTest.finish());
+  }
+
+  function runTest() {
+    populateAboutB2GInstaller()
+      .then(populateFakeDevices)
+      .then(() => {
+        fakeAdbDevice._files = { "/system/bin/surface_flinger": "" };
+      })
+      .then(test_plugAdbDevice)
+      .then(select_build.bind(this, 0))
+      .then(zipFileName => deviceBlobfree = zipFileName)
+      .then(assert_keepdata_nonvisible)
+      .then(click_flash);
+  }
+
+  setPrefsAndRunTests();
+
+  </script>
+</pre>
+</body>
+</html>

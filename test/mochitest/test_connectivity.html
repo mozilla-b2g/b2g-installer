@@ -1,0 +1,90 @@
+<!DOCTYPE HTML>
+<html>
+<!--
+https://bugzilla.mozilla.org/show_bug.cgi?id=1235459
+-->
+<head>
+  <meta charset="utf-8">
+  <title>Test for Bug </title>
+  <script type="application/javascript" src="chrome://mochikit/content/tests/SimpleTest/SimpleTest.js"></script>
+  <script type="application/javascript" src="http://mochi.test:8888/chrome/browser/extensions/b2g-installer/test/mochitest/common.js"></script>
+  <link rel="stylesheet" type="text/css" href="chrome://mochikit/content/tests/SimpleTest/test.css"/>
+  </script>
+</head>
+<body>
+<p id="display"></p>
+<div id="content" style="display: none">
+</div>
+<div id="container">
+  <h3 id="offline"></h3>
+  <ul id="devices"></ul>
+  <input id="userBuild" type="file" value="Upload your own build" />
+  <button id="installBtn">Flash Device</button>
+  <div class="dialog" id="confirmDialog"><div>
+    <section>
+      <p>Your device has succesfully installed Firefox OS!</p>
+       <button>Ok</button>
+    </section>
+  </div></div>
+</div>
+<pre id="test">
+  <script type="application/javascript" id="code"></script>
+  <script type="application/javascript">
+
+  "use strict";
+
+  var offline = document.getElementById("offline");
+
+  Components.utils.import("resource://gre/modules/Services.jsm");
+  Services.io.manageOfflineStatus = false;
+
+  function test_offline() {
+    return new Promise((resolve, reject) => {
+      Services.io.offline = true;
+      is(navigator.onLine, false, "is offline");
+      ok(offline, "has offline content");
+
+      // test direct call then event based
+      showOffline(true);
+      is(offline.style.visibility, "visible", "show offline message when offline");
+
+      offline.style.visibility = "";
+      window.dispatchEvent(new Event("offline"));
+      setTimeout(() => {
+        is(offline.style.visibility, "visible", "event show offline message when offline");
+        resolve();
+      });
+    });
+  }
+
+  function test_online() {
+    return new Promise((resolve, reject) => {
+      Services.io.offline = false;
+      is(navigator.onLine, true, "is online");
+      ok(offline, "has online content");
+
+      showOffline(false);
+      is(offline.style.visibility, "hidden", "hide offline message when online");
+
+      offline.style.visibility = "";
+      window.dispatchEvent(new Event("online"));
+      setTimeout(() => {
+        is(offline.style.visibility, "hidden", "event hide offline message when online");
+        resolve();
+      });
+    });
+  }
+
+  function runTest() {
+    loadAboutJs()
+      .then(() => test_offline())
+      .then(() => test_online())
+      .then(() => SimpleTest.finish());
+  }
+
+  setPrefsAndRunTests();
+
+  </script>
+</pre>
+</body>
+</html>
