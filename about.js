@@ -753,7 +753,7 @@ function isSupportedConfig(device, supportedDevice) {
           (values.indexOf(propVal) !== -1) : (values === propVal);
 
         if (!isOk) {
-          console.error("Property match failure", prop, "expected one of", values, "but got", propVal)
+          console.debug("Property match failure", prop, "expected one of", values, "but got", propVal)
           anyPropNotGood = true;
           break;
         }
