@@ -93,6 +93,16 @@ ul {
   text-align: left;
 }
 
+#keep-data[data-isb2g="true"] {
+  display: block;
+  visibility: visible;
+}
+
+#keep-data[data-isb2g="false"] {
+  display: none;
+  visibility: hidden;
+}
+
 #deviceId:empty::before {
   content: 'No device detected';
 }

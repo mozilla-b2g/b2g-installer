@@ -1263,6 +1263,12 @@ function deviceConnected() {
     }
 
     $('#deviceId')[0].textContent = deviceName;
+
+    return checkDeviceIsB2G(device);
+  }).then(isB2G => {
+    console.debug("Has verified B2G:", isB2G);
+    $("#keep-data")[0].dataset.isb2g = isB2G ? "true" : "false";
+    console.debug("Keepdata set:", $("#keep-data")[0].dataset.isb2g);
     currentStep('select');
   }).catch(err => {
     console.error(err);
