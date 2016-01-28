@@ -1105,6 +1105,15 @@ function drawBuild(build) {
   </label></li>`;
 }
 
+function drawUnsupported(build) {
+  return `<li><label class="build">
+    <div class="description">
+      <h4>${build.name}</h4>
+      <span>${build.description}</span>
+    </div>
+  </label></li>`;
+}
+
 function drawRow(device) {
   return device.builds.map(drawBuild).join('');
 }
@@ -1233,16 +1242,27 @@ function deviceConnected() {
   let device;
   Device.get().then(_device => {
     device = _device;
+    return device.getModel();
+  }).then(_model => {
+    device.model = _model;
     return getAvailableBuilds(device);
   }).then(builds => {
     var deviceName = device.id;
+    console.debug("Found builds:", builds, "for device:", device);
     if (builds.length) {
       // We dont get a human readable name from the device, pick
       // it up from the configuration name
       deviceName = builds[0].id;
+      $('#devices')[0].innerHTML = builds.map(drawRow).join('');
+    } else {
+      $('#noDevice')[0].innerHTML = drawUnsupported(
+        {
+          name: device.model || device.id,
+          description: "No build is available for this device, but you can use a local blobfree distribution if that is available."
+        });
     }
+
     $('#deviceId')[0].textContent = deviceName;
-    $('#devices')[0].innerHTML = builds.map(drawRow).join('');
     currentStep('select');
   }).catch(err => {
     console.error(err);

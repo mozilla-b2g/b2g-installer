@@ -103,6 +103,11 @@ ul {
   font-weight: 400;
 }
 
+#noDevice {
+  color: #ff0000;
+  font-weight: bold;
+}
+
 .build {
   display: flex;
   margin-bottom: 15px;
