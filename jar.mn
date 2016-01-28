@@ -1,0 +1,10 @@
+b2g-installer.jar:
+% content b2g-installer %content/
+  content/		(*.js)
+  content/		(*.css)
+  content/		(*.xhtml)
+  content/		(*.png)
+  content/Fira/		(Fira/*)
+  content/linux/	(linux/*)
+  content/linux64/	(linux64/*)
+  content/mac64/	(mac64/*)

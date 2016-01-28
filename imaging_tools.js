@@ -46,7 +46,7 @@ function gzipCompressString(string, obs) {
 
 function ImagingTools() {
   this._tools    = [ "mkbootfs", "mkbootimg", "make_ext4fs" ];
-  this._baseURI  = "resource://b2g-installeratmozilla.org/";
+  this._baseURI  = "resource://b2g-installeratmozilla.org/chrome/b2g-installer/content/";
   this._paths    = {};
   this._platform = Services.appinfo.OS;
 }
