@@ -1,48 +1,13 @@
-Installing B2G from an Add-On
+Check online doc at https://developer.mozilla.org/en-US/docs/Mozilla/Firefox_OS/Building_and_installing_Firefox_OS/B2G_Installer_Addon
 
-Use BUILD_HOST_64bit=1 and/or BUILD_HOST_static=1 when building Android to get
-either Linux 64 bits binaries or statically linked binaries. You can combine
-both:
-  $ ls -l linux/* linux64/*
-  -rwxrwxr-x 1 alex alex 1437885 mai   25 12:09 linux64/make_ext4fs
-  -rwxrwxr-x 1 alex alex  784426 mai   25 12:10 linux64/mkbootfs
-  -rwxrwxr-x 1 alex alex  784346 mai   25 12:10 linux64/mkbootimg
-  -rwxrwxr-x 1 alex alex 1437885 mai   25 12:12 linux/make_ext4fs
-  -rwxrwxr-x 1 alex alex  784426 mai   25 12:12 linux/mkbootfs
-  -rwxrwxr-x 1 alex alex  784346 mai   25 12:12 linux/mkbootimg
-
-Then to save some space, you can strip and pack binaries.
-
-Stripping:
-  $ strip linux/* linux64/* && ls -l linux/* linux64/*
-  -rwxrwxr-x 1 alex alex 844344 mai   25 12:13 linux64/make_ext4fs
-  -rwxrwxr-x 1 alex alex 595528 mai   25 12:13 linux64/mkbootfs
-  -rwxrwxr-x 1 alex alex 591024 mai   25 12:13 linux64/mkbootimg
-  -rwxrwxr-x 1 alex alex 844344 mai   25 12:13 linux/make_ext4fs
-  -rwxrwxr-x 1 alex alex 595528 mai   25 12:13 linux/mkbootfs
-  -rwxrwxr-x 1 alex alex 591024 mai   25 12:13 linux/mkbootimg
-
-Packing:
-  $ upx linux/* linux64/* && ls -l linux/* linux64/*
-                       Ultimate Packer for eXecutables
-                          Copyright (C) 1996 - 2013
-  UPX 3.91        Markus Oberhumer, Laszlo Molnar & John Reiser   Sep 30th 2013
-  
-          File size         Ratio      Format      Name
-     --------------------   ------   -----------   -----------
-      844344 ->    369564   43.77%  linux/ElfAMD   make_ext4fs                   
-      595528 ->    246972   41.47%  linux/ElfAMD   mkbootfs                      
-      591024 ->    245248   41.50%  linux/ElfAMD   mkbootimg                     
-      844344 ->    369564   43.77%  linux/ElfAMD   make_ext4fs                   
-      595528 ->    246972   41.47%  linux/ElfAMD   mkbootfs                      
-      591024 ->    245248   41.50%  linux/ElfAMD   mkbootimg                     
-     --------------------   ------   -----------   -----------
-     4061792 ->   1723568   42.43%                 [ 6 files ]
-  
-  Packed 6 files.
-  -rwxrwxr-x 1 alex alex 369564 mai   25 12:13 linux64/make_ext4fs
-  -rwxrwxr-x 1 alex alex 246972 mai   25 12:13 linux64/mkbootfs
-  -rwxrwxr-x 1 alex alex 245248 mai   25 12:13 linux64/mkbootimg
-  -rwxrwxr-x 1 alex alex 369564 mai   25 12:13 linux/make_ext4fs
-  -rwxrwxr-x 1 alex alex 246972 mai   25 12:13 linux/mkbootfs
-  -rwxrwxr-x 1 alex alex 245248 mai   25 12:13 linux/mkbootimg
+Quick cheat:
+ - get a clone from mozilla-central
+ - create a browser/extensions/b2g-installer/ inside and copy everything from this repo to browser/extensions/b2g-installer/
+ OR
+ - symlink browser/extensions/b2g-installer/ to this repo
+ - change browser/extensions/moz.build and add "b2g-installer" in DIRS
+ - ./mach build && ./mach build package in gecko to build
+ - addon is built in objdir/dist/xpi-stage/b2g-installer/
+ - running tests with:
+   - ./mach mochitest browser/extensions/b2g-installer/
+   - ./mach xpcshell-test browser/extensions/b2g-installer/
