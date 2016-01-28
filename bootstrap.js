@@ -100,7 +100,7 @@ function startup(data, reason) {
 
   loader = Loader(loaderOptions);
   let require_ = Require(loader, { id: "./addon" });
-  mainModule = require_("./main");
+  mainModule = require_("chrome://b2g-installer/content/main.js");
 }
 
 function shutdown(data, reasonCode) {

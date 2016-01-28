@@ -1,0 +1,24 @@
+From d80eb883f03ed63d4d14008eb785c46a1536e037 Mon Sep 17 00:00:00 2001
+From: Alexandre Lissy <lissyx@lissyx.dyndns.org>
+Date: Thu, 28 Jan 2016 21:08:35 +0100
+Subject: [PATCH] Bug 1235459 - Make use of b2g-installer included r=daleharvey
+
+---
+ browser/extensions/moz.build | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/browser/extensions/moz.build b/browser/extensions/moz.build
+index 11279a1..fb54e24 100644
+--- a/browser/extensions/moz.build
++++ b/browser/extensions/moz.build
+@@ -5,6 +5,7 @@
+ # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ 
+ DIRS += [
++    'b2g-installer',
+     'loop',
+     'pdfjs',
+     'pocket',
+-- 
+2.5.0
+
