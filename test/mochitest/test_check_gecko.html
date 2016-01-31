@@ -1,0 +1,183 @@
+<!DOCTYPE HTML>
+<html>
+<!--
+https://bugzilla.mozilla.org/show_bug.cgi?id=1235459
+-->
+<head>
+  <meta charset="utf-8">
+  <title>Test for Bug </title>
+  <script type="application/javascript" src="chrome://mochikit/content/tests/SimpleTest/SimpleTest.js"></script>
+  <script type="application/javascript" src="http://mochi.test:8888/chrome/browser/extensions/b2g-installer/test/mochitest/common.js"></script>
+  <link rel="stylesheet" type="text/css" href="chrome://mochikit/content/tests/SimpleTest/test.css"/>
+  </script>
+</head>
+<body>
+<p id="display"></p>
+<div id="content" style="display: none">
+</div>
+<div id="container">
+  <h3 id="offline"></h3>
+  <ul id="devices"></ul>
+  <input id="userBuild" type="file" value="Upload your own build" />
+  <button id="installBtn">Flash Device</button>
+  <div class="dialog" id="confirmDialog"><div>
+    <section>
+      <p>Your device has succesfully installed Firefox OS!</p>
+       <button>Ok</button>
+    </section>
+  </div></div>
+  <div class="dialog error" id="errorDisplay">
+    <section class="unknown">
+      An unknown error has been reported. Please check WebConsole and JSConsole.
+    </section>
+    <section class="adbhelper">
+      Please verify ADB Helper v0.8.6 is installed and enabled.
+    </section>
+    <section class="gecko-tooold">
+      Your Firefox Nightly is too old, please update.
+    </section>
+    <section class="gecko-unsupported-os-arch">
+      This addon is only targetting Firefix Nightly running on Linux 32/64 bits or OSX 64 bits.
+    </section>
+    <section class="gecko-unsupported-build">
+      This addon is only targetting Firefox Nightly builds.
+    </section>
+  </div>
+</div>
+<pre id="test">
+  <script type="application/javascript" id="code"></script>
+  <script type="application/javascript">
+
+  "use strict";
+
+  let realAppInfo;
+
+  function save_appinfo() {
+    realAppInfo = Services.appinfo;
+  }
+
+  function restore_appinfo() {
+    Services.appinfo = realAppInfo;
+  }
+
+  function test_verify_gecko_good() {
+    Services.appinfo = {
+      appBuildID: "20151003060000",
+      OS: "Linux",
+      XPCOMABI: "x86_64-gcc3",
+      isReleaseBuild: false,
+      platformVersion: "46a01"
+    };
+
+    return new Promise((resolve, reject) => {
+      verifyGecko().then(() => {
+        ok(true, "Gecko verification success");
+        resolve();
+      });
+    });
+  }
+
+  function test_verify_gecko_tooold() {
+    Services.appinfo = {
+      appBuildID: "20150101060000",
+      OS: "Linux",
+      XPCOMABI: "x86_64-gcc3",
+      isReleaseBuild: false,
+      platformVersion: "46a01"
+    };
+
+    return new Promise((resolve, reject) => {
+      verifyGecko().catch((err) => {
+        is(err.message, "GECKO_TOOOLD", "return too old error");
+        resolve();
+      });
+    });
+  }
+
+  function test_verify_gecko_unsupported_os_arch_win() {
+    Services.appinfo = {
+      appBuildID: "20151003060000",
+      OS: "WINNT",
+      XPCOMABI: "x86_64-gcc3",
+      isReleaseBuild: false,
+      platformVersion: "46a01"
+    };
+
+    return new Promise((resolve, reject) => {
+      verifyGecko().catch((err) => {
+        is(err.message, "GECKO_UNSUPPORTED_OS_ARCH", "return os/arch error on WINNT");
+        resolve();
+      });
+    });
+  }
+
+  function test_verify_gecko_unsupported_os_arch_osx32() {
+    Services.appinfo = {
+      appBuildID: "20151003060000",
+      OS: "Darwin",
+      XPCOMABI: "x86-gcc3",
+      isReleaseBuild: false,
+      platformVersion: "46a01"
+    };
+
+    return new Promise((resolve, reject) => {
+      verifyGecko().catch((err) => {
+        is(err.message, "GECKO_UNSUPPORTED_OS_ARCH", "return os/arch error on Darwin 32 bits");
+        resolve();
+      });
+    });
+  }
+
+  function test_verify_gecko_unsupported_build_release() {
+    Services.appinfo = {
+      appBuildID: "20151003060000",
+      OS: "Linux",
+      XPCOMABI: "x86_64-gcc3",
+      isReleaseBuild: true,
+      platformVersion: "46a01"
+    };
+
+    return new Promise((resolve, reject) => {
+      verifyGecko().catch((err) => {
+        is(err.message, "GECKO_UNSUPPORTED_BUILD", "return build error on release build");
+        resolve();
+      });
+    });
+  }
+
+  function test_verify_gecko_unsupported_build_platformVersion() {
+    Services.appinfo = {
+      appBuildID: "20151003060000",
+      OS: "Linux",
+      XPCOMABI: "x86_64-gcc3",
+      isReleaseBuild: false,
+      platformVersion: "46.0.1"
+    };
+
+    return new Promise((resolve, reject) => {
+      verifyGecko().catch((err) => {
+        is(err.message, "GECKO_UNSUPPORTED_BUILD", "return build error on platformVersion non 'a'");
+        resolve();
+      });
+    });
+  }
+
+  function runTest() {
+    loadAboutJs()
+      .then(() => save_appinfo())
+      .then(() => test_verify_gecko_good())
+      .then(() => test_verify_gecko_tooold())
+      .then(() => test_verify_gecko_unsupported_os_arch_win())
+      .then(() => test_verify_gecko_unsupported_os_arch_osx32())
+      .then(() => test_verify_gecko_unsupported_build_release())
+      .then(() => test_verify_gecko_unsupported_build_platformVersion())
+      .then(() => restore_appinfo())
+      .then(() => SimpleTest.finish());
+  }
+
+  setPrefsAndRunTests();
+
+  </script>
+</pre>
+</body>
+</html>

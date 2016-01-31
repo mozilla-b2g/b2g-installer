@@ -1,0 +1,88 @@
+<!DOCTYPE HTML>
+<html>
+<!--
+https://bugzilla.mozilla.org/show_bug.cgi?id=1235459
+-->
+<head>
+  <meta charset="utf-8">
+  <title>Test for Bug </title>
+  <script type="application/javascript" src="chrome://mochikit/content/tests/SimpleTest/SimpleTest.js"></script>
+  <script type="application/javascript" src="http://mochi.test:8888/chrome/browser/extensions/b2g-installer/test/mochitest/common.js"></script>
+  <link rel="stylesheet" type="text/css" href="chrome://mochikit/content/tests/SimpleTest/test.css"/>
+  </script>
+</head>
+<body>
+<p id="display"></p>
+<div id="content" style="display: none">
+</div>
+<div id="container"></div>
+<pre id="test">
+  <script type="application/javascript" id="fake-adb"></script>
+  <script type="application/javascript">
+
+  "use strict";
+
+  var fakeAdbDevice;
+
+  function populateFakeDevices() {
+    return loadFakeDevice().then(() => {
+      fakeAdbDevice = new FakeAdbDevice();
+      fakeAdbDevice._props["ro.build.id"] = "M";
+    });
+  }
+
+  function test_plugAdbDevice() {
+    return new Promise((resolve, reject) => {
+      w.Devices.register(fakeAdbDevice._serial, fakeAdbDevice);
+      is(Object.keys(w.Devices._devices).length, 1, "Devices._devices has one element");
+
+      let dev = w.Devices._devices[fakeAdbDevice._serial];
+      ok(dev, "FakeAdbDevice", fakeAdbDevice._serial, "exists");
+
+      setTimeout(() => resolve());
+    });
+  }
+
+  function test_assert_device() {
+    return new Promise((resolve, reject) => {
+      let deviceId = c.getElementById("deviceId");
+      is(deviceId.textContent, fakeAdbDevice._serial, "Unsupported device detected in ADB mode");
+
+      let devices = c.getElementById("devices");
+      ok(devices, "has devices node");
+      is(devices.childNodes.length, 0, "no build available");
+
+      let noDevice = c.getElementById("noDevice");
+      ok(noDevice, "has noDevice node");
+      is(noDevice.childNodes.length, 1, "one element for no device");
+
+      let unsupportedDeviceName = c.querySelector("#noDevice h4");
+      is(unsupportedDeviceName.textContent, fakeAdbDevice.model, "matching model for unsupported device");
+
+      resolve();
+    });
+  }
+
+  function test_unplugAdbDevice() {
+    return new Promise((resolve, reject) => {
+      w.Devices.unregister(fakeAdbDevice._serial);
+      is(Object.keys(w.Devices._devices).length, 0, "Devices._devices has no element");
+
+      resolve();
+    });
+  }
+
+  function runTest() {
+    populateAboutB2GInstaller()
+      .then(() => populateFakeDevices())
+      .then(() => test_plugAdbDevice())
+      .then(() => test_assert_device())
+      .then(() => test_unplugAdbDevice())
+      .then(() => SimpleTest.finish());
+  }
+
+  setPrefsAndRunTests();
+
+  </script>
+</pre>
+</body>

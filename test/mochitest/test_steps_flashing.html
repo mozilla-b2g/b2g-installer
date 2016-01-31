@@ -1,0 +1,146 @@
+<!DOCTYPE HTML>
+<html>
+<!--
+https://bugzilla.mozilla.org/show_bug.cgi?id=1235459
+-->
+<head>
+  <meta charset="utf-8">
+  <title>Test for Bug </title>
+  <script type="application/javascript" src="chrome://mochikit/content/tests/SimpleTest/SimpleTest.js"></script>
+  <script type="application/javascript" src="http://mochi.test:8888/chrome/browser/extensions/b2g-installer/test/mochitest/common.js"></script>
+  <link rel="stylesheet" type="text/css" href="chrome://mochikit/content/tests/SimpleTest/test.css"/>
+  </script>
+</head>
+<body>
+<p id="display"></p>
+<div id="content" style="display: none">
+</div>
+<div id="container"></div>
+<pre id="test">
+  <script type="application/javascript">
+
+  "use strict";
+
+  var allSteps = [ "downloading", "extracting", "fetching", "creating", "flashing"];
+
+  function element_has_class(stepName, className) {
+    let e = c.querySelector("." + stepName);
+    ok(e, "has element", e);
+    ok(e.classList.contains(className), "element has class", className);
+  }
+
+  function element_hasnot_class(stepName, classesName) {
+    let e = c.querySelector("." + stepName);
+    ok(e, "has element", e);
+
+    ok(classesName.length > 0, "checking with classes");
+    classesName.forEach(className => {
+      ok(!e.classList.contains(className), "element has no class", className);
+    });
+  }
+
+  function assert_step_inprogress(stepName) {
+    element_has_class(stepName, "inprogress");
+  }
+
+  function assert_step_done(stepName) {
+    element_has_class(stepName, "done");
+  }
+
+  function assert_step_none(stepName) {
+    element_hasnot_class(stepName, ["inprogress", "done"]);
+  }
+
+  function assert_dialog_visible(visible) {
+    let computed = c.defaultView.getComputedStyle(c.getElementById("progressDialog"));
+
+    if (visible) {
+      is(computed.display, "block", "progress dialog is visible");
+    } else {
+      is(computed.display, "none", "progress dialog is not visible");
+    }
+  }
+
+  function test_init() {
+    return new Promise((resolve, reject) => {
+      assert_dialog_visible(false);
+      allSteps.forEach(s => assert_step_none(s));
+      resolve();
+    });
+  }
+
+  function test_progress_step(stepName, info, subInfo) {
+    return new Promise((resolve, reject) => {
+      ok(true, "testing stepName: " + stepName);
+
+      w.downloadProgress(stepName, info);
+      assert_dialog_visible(true);
+
+      let currentStep = allSteps.indexOf(stepName);
+      allSteps.forEach(s => {
+        let isFinished = (allSteps.indexOf(s) < currentStep);
+        let isRunning  = (allSteps.indexOf(s) === currentStep);
+        let isPending  = (allSteps.indexOf(s) > currentStep);
+
+        if (isFinished) {
+          assert_step_done(s);
+        } else if (isRunning) {
+          assert_step_inprogress(s);
+        } else if (isPending) {
+          assert_step_none(s);
+        } else {
+          ok(false, "unexpected state!!");
+        }
+      });
+
+      if (info) {
+        let e = c.getElementById("additionalProgress");
+        is(e.textContent, info, "download info is here");
+      }
+
+      if (subInfo) {
+        let e = c.getElementById("subAdditionalProgress");
+        is(e.textContent, subInfo, "download sub info is here");
+      }
+
+      resolve();
+    });
+  }
+
+  function test_downloading() {
+    return test_progress_step("downloading", "Downloading archive");
+  }
+
+  function test_extracting() {
+    return test_progress_step("extracting", "Downloading archive");
+  }
+
+  function test_fetching() {
+    return test_progress_step("fetching", "Downloading archive");
+  }
+
+  function test_creating() {
+    return test_progress_step("creating", "Downloading archive");
+  }
+
+  function test_flashing() {
+    return test_progress_step("flashing", "Downloading archive");
+  }
+
+  function runTest() {
+    populateAboutB2GInstaller()
+      .then(() => test_init())
+      .then(() => test_downloading())
+      .then(() => test_extracting())
+      .then(() => test_fetching())
+      .then(() => test_creating())
+      .then(() => test_flashing())
+      .then(() => SimpleTest.finish());
+  }
+
+  setPrefsAndRunTests();
+
+  </script>
+</pre>
+</body>
+</html>

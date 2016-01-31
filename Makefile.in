@@ -1,0 +1,31 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+ifeq (x86,$(CPU_ARCH))
+ifeq (Linux,$(OS_TARGET))
+    PKG_EXT = linux
+endif
+endif
+
+ifeq (x86_64,$(CPU_ARCH))
+ifeq (Darwin,$(OS_TARGET))
+    PKG_EXT = mac64
+endif
+ifeq (Linux,$(OS_TARGET))
+    PKG_EXT = linux64
+endif
+endif
+
+# Build breaks when using addon from symlink without this
+XPI_ROOT_APPID := b2g-installer@mozilla.org
+XPI_PKGNAME = b2g-installer@mozilla.org_$(PKG_EXT)
+
+TEST_EXTENSIONS_DIR = $(DEPTH)/_tests/testing/mochitest/extensions
+
+GENERATED_DIRS = $(TEST_EXTENSIONS_DIR)
+
+include $(topsrcdir)/config/rules.mk
+
+libs::
+	@(cd $(DIST)/xpi-stage && tar $(TAR_CREATE_FLAGS) - $(XPI_NAME)) | (cd $(TEST_EXTENSIONS_DIR) && tar -xf -)

@@ -1,0 +1,93 @@
+<!DOCTYPE HTML>
+<html>
+<!--
+https://bugzilla.mozilla.org/show_bug.cgi?id=1233019
+-->
+<head>
+  <meta charset="utf-8">
+  <title>Test for Bug </title>
+  <script type="application/javascript" src="chrome://mochikit/content/tests/SimpleTest/SimpleTest.js"></script>
+  <script type="application/javascript" src="http://mochi.test:8888/chrome/browser/extensions/b2g-installer/test/mochitest/common.js"></script>
+  <link rel="stylesheet" type="text/css" href="chrome://mochikit/content/tests/SimpleTest/test.css"/>
+  </script>
+</head>
+<body>
+<p id="display"></p>
+<div id="content" style="display: none">
+</div>
+<div id="container"></div>
+<pre id="test">
+  <script type="application/javascript" id="fake-adb"></script>
+  <script type="application/javascript">
+
+  "use strict";
+
+  function assert_files_empty() {
+    let name = c.getElementById("userBuild");
+    ok(name, "has name for build");
+    let files = name.mozGetFileNameArray();
+    is(files.length === 0, true, "has no file");
+  }
+
+  function assert_files_nonempty() {
+    let name = c.getElementById("userBuild");
+    ok(name, "has name for build");
+    let files = name.mozGetFileNameArray();
+    is(files.length > 0, true, "has more than one files");
+  }
+
+  function assert_file(id, fileName) {
+    let name = c.getElementById("userBuild");
+    ok(name, "has name for build");
+    let files = name.mozGetFileNameArray();
+    is(files[id], fileName, "has file " + fileName);
+  }
+
+  function test_select_custom(path) {
+    return new Promise((resolve, reject) => {
+      assert_files_empty();
+
+      // We don't really need the file to exists for now
+      let files = [ path ];
+      let user = c.getElementById("userBuild");
+      ok(user, "has userbuild node");
+
+      user.mozSetFileNameArray(files, files.length);
+      user.dispatchEvent(new Event('change'));
+
+      setTimeout(() => {
+        assert_files_nonempty();
+        assert_file(0, path);
+	return resolve();
+      });
+    });
+  }
+
+  function reload_iframe() {
+    return new Promise((resolve, reject) => {
+      let frame = document.getElementsByTagName("iframe")[0];
+      is(frame.src, "about:b2g-installer", "frame is installer");
+      frame.addEventListener("load", function __loaded() {
+        frame.removeEventListener("load", __loaded);
+        resolve();
+      });
+      w.location.reload(true);
+    });
+  }
+
+  function runTest() {
+    populateAboutB2GInstaller()
+      .then(() => w.currentStep("select"))
+      .then(() => test_select_custom("/bin/ls"))
+      .then(() => reload_iframe())
+      .then(() => w.currentStep("select"))
+      .then(() => test_select_custom("/bin/true"))
+      .then(() => SimpleTest.finish());
+  }
+
+  setPrefsAndRunTests();
+
+  </script>
+</pre>
+</body>
+</html>

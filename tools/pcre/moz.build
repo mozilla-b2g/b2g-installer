@@ -1,0 +1,43 @@
+# -*- Mode: python; c-basic-offset: 4; indent-tabs-mode: nil; tab-width: 40 -*-
+# vim: set filetype=python:
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+Library('pcre')
+
+DIST_INSTALL = False
+USE_STATIC_LIBS = True
+ALLOW_COMPILER_WARNINGS = True
+
+LOCAL_INCLUDES += [
+    'dist',
+]
+
+CFLAGS += [
+    '-DHAVE_CONFIG_H',
+]
+
+SOURCES += [
+    'dist/pcre_byte_order.c',
+    'dist/pcre_compile.c',
+    'dist/pcre_config.c',
+    'dist/pcre_dfa_exec.c',
+    'dist/pcre_exec.c',
+    'dist/pcre_fullinfo.c',
+    'dist/pcre_get.c',
+    'dist/pcre_globals.c',
+    'dist/pcre_jit_compile.c',
+    'dist/pcre_maketables.c',
+    'dist/pcre_newline.c',
+    'dist/pcre_ord2utf8.c',
+    'dist/pcre_refcount.c',
+    'dist/pcre_string_utils.c',
+    'dist/pcre_study.c',
+    'dist/pcre_tables.c',
+    'dist/pcre_ucd.c',
+    'dist/pcre_valid_utf8.c',
+    'dist/pcre_version.c',
+    'dist/pcre_xclass.c',
+    'pcre_chartables.c',
+]

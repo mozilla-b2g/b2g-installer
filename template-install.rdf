@@ -28,7 +28,7 @@
       <Description>
         <em:id>adbhelper@mozilla.org</em:id>
         <em:name>ADB Helper</em:name>
-        <em:minVersion>0.8.2</em:minVersion>
+        <em:minVersion>0.8.6</em:minVersion>
       </Description>
     </em:requires>
   </Description>

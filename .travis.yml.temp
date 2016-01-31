@@ -1,0 +1,77 @@
+language: c++
+
+### # Need sudo since autoconf2.13 is not yet whitelisted
+###sudo: required
+dist: trusty
+
+# Trusty comes with gcc 4.8.4
+compiler:
+  - gcc
+
+cache: ccache
+
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - autotools-dev
+      - imagemagick
+      - libasound2-dev
+      - libbz2-dev
+      - libdbus-glib-1-dev
+      - libevent-dev
+      - libffi-dev
+      - libgtk-3-dev
+      - libgnome2-dev
+      - libgnomeui-dev
+      - libgnomevfs2-dev
+      - libglib2.0-dev
+      - libgtk2.0-dev
+      - libhunspell-dev
+      - libiw-dev
+      - libjpeg-dev
+      - libnotify-dev
+      - libnspr4-dev
+      - libnss3-dev
+      - libpulse-dev
+      - libreadline-dev
+      - librsvg2-bin
+      - libstartup-notification0-dev
+      - libsqlite3-dev
+      - libvpx-dev
+      - libx11-dev
+      - libxt-dev
+      - mesa-common-dev
+      - python-dbus
+      - python-dbus-dev
+      - xsltproc
+      - yasm
+      - zlib1g-dev
+      - gcc-4.8
+      - g++-4.8
+
+### before_install:
+###   - sudo apt-get update -qq
+###   - sudo apt-get install -qq autotools-dev autoconf2.13 libx11-dev libxt-dev
+###                              libgtk-3-dev libgtk2.0-dev libglib2.0-dev
+###                              libstartup-notification0-dev libgnomevfs2-dev
+###                              libgnome2-dev libgnomeui-dev libjpeg-dev
+###                              zlib1g-dev libbz2-dev libreadline-dev libnspr4-dev
+###                              libnss3-dev libsqlite3-dev libvpx-dev libhunspell-dev
+###                              libdbus-glib-1-dev libasound2-dev libiw-dev
+###                              libnotify-dev libffi-dev libevent-dev mesa-common-dev
+###                              libpulse-dev yasm imagemagick librsvg2-bin xsltproc
+
+env:
+ - GECKO_DIR=../gecko-dev-master AUTOCONF_INST=${TRAVIS_BUILD_DIR}/../autoconf/ AUTOCONF_PATH=${TRAVIS_BUILD_DIR}/../autoconf/bin/ MOZ_NOSPAM="nospam"
+
+before_script:
+  - "export DISPLAY=:99.0"
+  - "sh -e /etc/init.d/xvfb start"
+  - sleep 3 # give xvfb some time to start
+  - bash ./build_autoconf.sh
+
+script:
+  - bash ./prepare.sh
+  - bash ./build.sh
