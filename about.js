@@ -648,9 +648,9 @@ function extractBlobFreeDistribution(path) {
         }
       }
       resolve(devicePath);
-    }).catch(function(e) {
-      // This can fail with permissions errors but is safe to ignore for now
-      resolve();
+    }).catch(e => {
+      console.error("Error when extracting blobfree distribution", e);
+      reject(e);
     });
   });
 }
@@ -1130,18 +1130,38 @@ function subInfo(info) {
   $('#subAdditionalProgress')[0].textContent = info || '';
 }
 
-function downloadProgress(currentStep, info) {
+function downloadProgress(currentDownloadStep, info) {
   $('#progressDialog')[0].style.display = 'block';
   var steps = ['downloading', 'extracting', 'fetching', 'creating', 'flashing'];
   var done = true;
   steps.forEach(function(step) {
     var li = $('.' + step)[0];
     li.classList.remove('inprogress');
-    if (step === currentStep) {
+    if (step === currentDownloadStep) {
       li.classList.add('inprogress');
       done = false;
     }
+    $('.' + step)[0].classList.toggle('fail', false);
     $('.' + step)[0].classList.toggle('done', done);
+  });
+  downloadInfo(info);
+  subInfo('');
+}
+
+// Will switch all inprogress/pending to fail class
+function downloadProgressFailure(info) {
+  $('#progressDialog')[0].style.display = 'block';
+  var steps = ['downloading', 'extracting', 'fetching', 'creating', 'flashing'];
+  steps.forEach(function(step) {
+    var li = $('.' + step)[0];
+    let isPending    = li.classList.contains('pending')
+    let isInProgress = li.classList.contains('inprogress');
+    if (isPending || isInProgress) {
+      li.classList.remove('inprogress');
+      li.classList.remove('pending');
+      $('.' + step)[0].classList.toggle('done', false);
+      $('.' + step)[0].classList.toggle('fail', true);
+    }
   });
   downloadInfo(info);
   subInfo('');
@@ -1211,6 +1231,7 @@ function install() {
         _isRisky = false;
         console.error('Installing failed');
         console.error(e);
+        downloadProgressFailure('! FAILURE ! Please file a bug with console content !');
         return reject();
       });
   });
@@ -1242,6 +1263,10 @@ function deviceConnected() {
   let device;
   Device.get().then(_device => {
     device = _device;
+    if (device.type !== "adb") {
+      console.error("Device is not running in ADB mode, aborting ...");
+      return Promise.reject();
+    }
     return device.getModel();
   }).then(_model => {
     device.model = _model;

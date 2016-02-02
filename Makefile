@@ -1,6 +1,6 @@
 FILES=about.css about.js about.xhtml bootstrap.js imaging_tools.js main.js subprocess.js chrome.manifest Fira checkmark.png spinner.png Header.png Header_Gradient.png Connect_Icon_130x130.png Flash_Icon_130x130.png Select_Icon_130x130.png Firefox_Installer_Title.png
 
-ADDON_VERSION ?= 0.9
+ADDON_VERSION ?= 0.9.1
 
 XPI_NAME=b2g-installer-$(ADDON_VERSION)
 XPIS = $(XPI_NAME)-linux.xpi $(XPI_NAME)-linux64.xpi $(XPI_NAME)-mac64.xpi
