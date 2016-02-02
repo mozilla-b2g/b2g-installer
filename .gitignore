@@ -1,3 +1,7 @@
 .*.swp
 .DS_Store
 b2g-installer*.xpi
+linux/update.rdf
+linux64/update.rdf
+mac64/update.rdf
+updates.zip
