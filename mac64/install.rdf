@@ -7,9 +7,9 @@
     <em:id>b2g-installer@mozilla.org</em:id>
     <em:name>B2G Installer</em:name>
     <em:description>A module to flash B2G on a supported device</em:description>
-    <em:version>@@ADDON_VERSION@@</em:version>
+    <em:version>0.9</em:version>
     <em:creator>Mozilla</em:creator>
-    <em:updateURL>@@UPDATE_URL@@</em:updateURL>
+    <em:updateURL>https://lissyx.github.io/b2g-installer/mac64/update.rdf</em:updateURL>
 
     <em:type>2</em:type>
 

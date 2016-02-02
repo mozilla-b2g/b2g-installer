@@ -12,8 +12,23 @@ USE_EXTENSION_MANIFEST = True
 
 FINAL_TARGET_FILES += [
     'bootstrap.js',
-    'install.rdf',
 ]
+
+if CONFIG['CPU_ARCH'] == 'x86' and CONFIG['OS_TARGET'] == 'Linux':
+    FINAL_TARGET_FILES += [
+        'linux/install.rdf',
+    ]
+
+if CONFIG['CPU_ARCH'] == 'x86_64':
+    if CONFIG['OS_TARGET'] == 'Linux':
+        FINAL_TARGET_FILES += [
+            'linux64/install.rdf',
+        ]
+
+    if CONFIG['OS_TARGET'] == 'Darwin':
+        FINAL_TARGET_FILES += [
+            'mac64/install.rdf',
+        ]
 
 DIRS += [
     'test',
