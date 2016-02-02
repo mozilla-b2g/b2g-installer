@@ -47,8 +47,12 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=1235459
     element_has_class(stepName, "done");
   }
 
+  function assert_step_fail(stepName) {
+    element_has_class(stepName, "fail");
+  }
+
   function assert_step_none(stepName) {
-    element_hasnot_class(stepName, ["inprogress", "done"]);
+    element_hasnot_class(stepName, ["inprogress", "done", "fail"]);
   }
 
   function assert_dialog_visible(visible) {
@@ -69,23 +73,48 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=1235459
     });
   }
 
-  function test_progress_step(stepName, info, subInfo) {
+  function test_reset() {
     return new Promise((resolve, reject) => {
-      ok(true, "testing stepName: " + stepName);
+      let dialog = c.getElementById("progressDialog")
+      ok(dialog, "has dialog element");
+      dialog.style.display = "none";
+
+      allSteps.forEach(s => {
+        let e = c.querySelector("." + s);
+        ok(e, "has element", e);
+        e.classList.remove("done");
+        e.classList.remove("fail");
+        e.classList.remove("inprogress");
+      });
+
+      resolve();
+    });
+  }
+
+  function test_progress_step(stepName, info, subInfo, success = true) {
+    return new Promise((resolve, reject) => {
+      ok(true, "testing stepName: " + stepName + " as success:" + success);
 
       w.downloadProgress(stepName, info);
+      if (!success) {
+        w.downloadProgressFailure(info);
+      }
+
       assert_dialog_visible(true);
 
       let currentStep = allSteps.indexOf(stepName);
       allSteps.forEach(s => {
         let isFinished = (allSteps.indexOf(s) < currentStep);
-        let isRunning  = (allSteps.indexOf(s) === currentStep);
+        let isFailed   = (allSteps.indexOf(s) === currentStep) && !success;
+        let isRunning  = (allSteps.indexOf(s) === currentStep) && success;
         let isPending  = (allSteps.indexOf(s) > currentStep);
 
         if (isFinished) {
           assert_step_done(s);
         } else if (isRunning) {
           assert_step_inprogress(s);
+        } else if (isFailed) {
+          assert_step_fail(s);
         } else if (isPending) {
           assert_step_none(s);
         } else {
@@ -111,20 +140,40 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=1235459
     return test_progress_step("downloading", "Downloading archive");
   }
 
+  function test_downloading_fail() {
+    return test_progress_step("downloading", "Downloading archive FAILED", "", false);
+  }
+
   function test_extracting() {
-    return test_progress_step("extracting", "Downloading archive");
+    return test_progress_step("extracting", "Extracting archive");
+  }
+
+  function test_extracting_fail() {
+    return test_progress_step("extracting", "Extracting archive FAILED", "", false);
   }
 
   function test_fetching() {
-    return test_progress_step("fetching", "Downloading archive");
+    return test_progress_step("fetching", "Fetching blobs");
+  }
+
+  function test_fetching_fail() {
+    return test_progress_step("fetching", "Fetching blobs FAILED", "", false);
   }
 
   function test_creating() {
-    return test_progress_step("creating", "Downloading archive");
+    return test_progress_step("creating", "Creating images");
+  }
+
+  function test_creating_fail() {
+    return test_progress_step("creating", "Creating images FAILED", "", false);
   }
 
   function test_flashing() {
-    return test_progress_step("flashing", "Downloading archive");
+    return test_progress_step("flashing", "Flashing device");
+  }
+
+  function test_flashing_fail() {
+    return test_progress_step("flashing", "Flashing device FAILED", "", false);
   }
 
   function runTest() {
@@ -135,6 +184,38 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=1235459
       .then(() => test_fetching())
       .then(() => test_creating())
       .then(() => test_flashing())
+      /* Restart the process and check for some errors handling */
+      .then(() => test_reset())
+      /* First: error during download */
+      .then(() => test_init())
+      .then(() => test_downloading_fail())
+      .then(() => test_reset())
+      /* Second: error during extraction */
+      .then(() => test_init())
+      .then(() => test_downloading())
+      .then(() => test_extracting_fail())
+      .then(() => test_reset())
+      /* Third: error during blob fetching */
+      .then(() => test_init())
+      .then(() => test_downloading())
+      .then(() => test_extracting())
+      .then(() => test_fetching_fail())
+      .then(() => test_reset())
+      /* Fourth: error during image creation */
+      .then(() => test_init())
+      .then(() => test_downloading())
+      .then(() => test_extracting())
+      .then(() => test_fetching())
+      .then(() => test_creating_fail())
+      .then(() => test_reset())
+      /* Fifth: error during device flashing */
+      .then(() => test_init())
+      .then(() => test_downloading())
+      .then(() => test_extracting())
+      .then(() => test_fetching())
+      .then(() => test_creating())
+      .then(() => test_flashing_fail())
+      .then(() => test_reset())
       .then(() => SimpleTest.finish());
   }
 
