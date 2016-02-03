@@ -222,6 +222,11 @@ button {
   background-size: 20px;
 }
 
+#progressDialog li.fail{
+  background: url(failure.png) no-repeat right 10px center;
+  background-size: 20px;
+}
+
 #progressDialog li.inprogress:after {
   content: "";
   width: 20px;
