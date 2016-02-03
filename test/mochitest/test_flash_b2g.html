@@ -48,6 +48,9 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=1235459
       .then(populateFakeDevices)
       .then(() => {
         fakeAdbDevice._files = { "/system/b2g/application.ini": "" };
+        fakeAdbDevice._props["ro.build.type"] = "eng";
+        fakeAdbDevice._props["ro.debuggable"] = "1";
+        fakeAdbDevice._services["b2g"] = true;
       })
       .then(test_plugAdbDevice)
       .then(select_build.bind(this, 0))

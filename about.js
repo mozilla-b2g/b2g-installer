@@ -782,9 +782,11 @@ let Device = (function() {
   let evts = {};
 
   function connected() {
+    console.debug("Device.connected(), will create devicePromise");
     devicePromise = new Promise((resolve, reject) => {
       let devices = Devices.available();
       if (!devices.length) {
+        console.debug("Empty device list, rejecting");
         reject();
         return;
       }
@@ -793,6 +795,7 @@ let Device = (function() {
       let waitFun = (device.type === 'adb') ? waitForAdb : waitForFastboot;
 
       waitFun(device).then(() => {
+        console.debug("Device.connected(), resolving devicePromise");
         resolve(device);
         if ('connected' in evts) {
           evts.connected();
@@ -817,6 +820,7 @@ let Device = (function() {
     if (devicePromise) {
       return devicePromise;
     }
+    console.debug("No devicePromise, rejecting");
     return Promise.reject();
   }
 
@@ -915,6 +919,24 @@ function distributionStep(file, evt) {
   });
 }
 
+/**
+ * Will make |adb root| and handle any risky timeout
+ **/
+function adbRootDevice(device) {
+  console.log("Let's root that device!");
+  return new Promise((resolve, reject) => {
+    device.summonRoot().then(() => {
+      console.log("Waiting for adb root to finish ...");
+      // Avoid races conditions with adb root
+      console.debug("Starting root 5 secs countdown ...");
+      setTimeout(() => {
+        console.debug("Finished root 5 secs countdown  !");
+        return resolve();
+      }, 5000);
+    });
+  });
+}
+
 function ensureRootIfNeeded() {
   // We consider that the default usecase is device will require rooting for
   // pulling blobs. So a missing requireRoot field is equivalent to true.
@@ -927,17 +949,44 @@ function ensureRootIfNeeded() {
     return Promise.resolve();
   }
 
+  console.log("Querying device ...");
   return Device.get().then(device => {
-    return device.summonRoot();
-  }).then(() => {
-    console.log("Waiting for adb root to finish ...");
-    // Avoid races conditions with adb root
-    return new Promise((resolve, reject) => {
-      console.debug("Starting root 5 secs countdown ...");
-      setTimeout(() => {
-        console.debug("Finished root 5 secs countdown  !");
+    console.log("Requesting root on the device");
+    return adbRootDevice(device);
+  });
+}
+
+/**
+ * To be called only for a B2G device. This will verify if we can
+ * adb shell stop b2g (i.e., only possible if we can get root access)
+ **/
+function stopB2GOrDisableLockScreen(device) {
+  return new Promise((resolve, reject) => {
+    device.shell("getprop ro.debuggable").then(debuggable => {
+      debuggable = debuggable.trim();
+      console.debug("getprop ro.debuggable", debuggable);
+      /* Only devices with ro.debuggable=1 can be |adb root|
+       * So let's ask user to clean his mess.
+       **/
+      if (debuggable === "0") {
+        alert("Device will loose ADB access unless you DISABLE lockscreen timeout in Settings > Display > Lockscreen Timeout");
         return resolve();
-      }, 5000);
+      } else if (debuggable === "1") {
+        adbRootDevice(device).then(() => {
+          device.shell("stop b2g").then(() => {
+            return resolve();
+          }).catch(err => {
+            console.error("Error while stop b2g", err);
+            return reject();
+          });
+        });
+      } else {
+        console.error("Unexpected output from getprop", debuggable);
+        return reject();
+      }
+    }).catch(err => {
+      console.error("Error while getprop ro.debuggable", err);
+      return reject();
     });
   });
 }
@@ -963,6 +1012,12 @@ function deviceStep(evt) {
   }).then(appIni => {
     console.log("Read appIni: ", appIni);
     applicationIni = appIni
+    if (runsB2G) {
+      return stopB2GOrDisableLockScreen(adbDevice);
+    } else {
+      return Promise.resolve();
+    }
+  }).then(() => {
     console.log("Pulling all blobs for", adbDevice);
     return getBlobs(adbDevice,
                     distributionContext.rootDirImage,
