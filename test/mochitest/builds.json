@@ -41,5 +41,35 @@
       "product": [ "FD3" ],
       "version-bootloader": [ "UBoot-1.0", "UBoot-2.0" ]
     }
+  },
+  {
+    "id": "Fake Device One",
+    "builds": [
+      {
+        "name": "nightly userdebug",
+        "description": "Nightly userdebug build freshly baked from TaskCluster",
+        "url": "http://mochi.test:8888/chrome/browser/extensions/b2g-installer/test/mochitest/fake.nightly-userdebug.zip"
+      }
+    ],
+    "adb": {
+      "ro.product.model": "Fake Device One",
+      "ro.bootloader": "1.0.0",
+      "ro.build.id": "L"
+    }
+  },
+  {
+    "id": "Fake Device Two",
+    "builds": [
+      {
+        "name": "nightly userdebug",
+        "description": "Nightly userdebug build freshly baked from TaskCluster",
+        "url": "http://mochi.test:8888/chrome/browser/extensions/b2g-installer/test/mochitest/fake.nightly-userdebug.zip"
+      }
+    ],
+    "adb": {
+      "ro.product.model": "Fake Device Two",
+      "ro.bootloader": "1.0.0",
+      "ro.build.id": "L"
+    }
   }
 ]

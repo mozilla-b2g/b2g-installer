@@ -113,6 +113,21 @@ ul {
   font-weight: 400;
 }
 
+#tooManyDevices {
+  color: #ff0000;
+  font-weight: bold;
+}
+
+#tooManyDevices[data-toomany="true"] {
+  display: block;
+  visibility: visible;
+}
+
+#tooManyDevices[data-toomany="false"] {
+  display: none;
+  visibility: hidden;
+}
+
 #noDevice {
   color: #ff0000;
   font-weight: bold;

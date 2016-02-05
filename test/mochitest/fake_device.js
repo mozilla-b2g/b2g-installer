@@ -6,20 +6,21 @@
 
 function FakeAdbDevice(serial) {
   this._serial = serial || "88ccd442e1131";
+  this._props  = {
+    "ro.product.model": "FakeDevice 2.0",
+    "ro.bootloader": "1.0.0",
+    "ro.build.id": "L"
+  };
+  this._files    = { };
+  this._services = { };
+
   this.id      = this._serial;
+  this.model   = "Fake Device";
+  this.runAsRoot = false;
 }
 
 FakeAdbDevice.prototype = {
   type:  "adb",
-  model: "Fake Device",
-  runAsRoot: false,
-  _props: {
-    "ro.product.model": "FakeDevice 2.0",
-    "ro.bootloader": "1.0.0",
-    "ro.build.id": "L"
-  },
-  _files: { },
-  _services: { },
 
   getModel: function() {
     dump("FakeAdbDevice.getModel()\n");
@@ -122,8 +123,13 @@ FakeAdbDevice.prototype = {
 
 function FakeFastbootDevice(serial) {
   this._serial        = serial || "88ccd442e1131";
-  this.id             = this._serial;
+  this._vars          = {
+    "product": "FD2",
+    "version-bootloader": "UBoot-2.0"
+  };
   this._vars.serialno = this._serial;
+  this.id             = this._serial;
+  this.model          = "Fake Device";
 
   // array of {"name": "PARTITION", "img": "IMAGE"}
   this._flashed = [];
@@ -131,11 +137,6 @@ function FakeFastbootDevice(serial) {
 
 FakeFastbootDevice.prototype = {
   type:  "fastboot",
-  model: "Fake Device",
-  _vars: {
-    "product": "FD2",
-    "version-bootloader": "UBoot-2.0"
-  },
 
   flash: function(partition, image) {
     dump("FakeFastbootDevice.flash(" + partition + ", " + image + ")\n");
