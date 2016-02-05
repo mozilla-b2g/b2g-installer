@@ -1351,7 +1351,7 @@ function verifyADBHelper() {
       }
 
       console.debug("ADBHelper version:", addon.version);
-      if (addon.version !== "0.8.6") {
+      if (addon.version !== "0.8.6" && addon.version !== "0.8.7") {
         console.error("ADB Helper addon has wrong version");
         return reject(new Error("ADBHELPER_VERSION"));
       }
