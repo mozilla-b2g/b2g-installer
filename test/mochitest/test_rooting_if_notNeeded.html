@@ -1,0 +1,64 @@
+<!DOCTYPE HTML>
+<html>
+<!--
+https://bugzilla.mozilla.org/show_bug.cgi?id=1233029
+-->
+<head>
+  <meta charset="utf-8">
+  <title>Test for Bug </title>
+  <script type="application/javascript" src="chrome://mochikit/content/tests/SimpleTest/SimpleTest.js"></script>
+  <script type="application/javascript" src="http://mochi.test:8888/chrome/browser/extensions/b2g-installer/test/mochitest/common.js"></script>
+  <script type="application/javascript" src="http://mochi.test:8888/chrome/browser/extensions/b2g-installer/test/mochitest/rooting_common.js"></script>
+  <link rel="stylesheet" type="text/css" href="chrome://mochikit/content/tests/SimpleTest/test.css"/>
+  </script>
+</head>
+<body>
+<p id="display"></p>
+<div id="content" style="display: none">
+</div>
+<div id="container">
+  <h3 id="offline"></h3>
+  <ul id="devices"></ul>
+  <input id="userBuild" type="file" value="Upload your own build" />
+  <button id="installBtn">Flash Device</button>
+  <div class="dialog" id="confirmDialog"><div>
+    <section>
+      <p>Your device has succesfully installed Firefox OS!</p>
+       <button>Ok</button>
+    </section>
+  </div></div>
+</div>
+<pre id="test">
+  <script type="application/javascript" id="code"></script>
+  <script type="application/javascript" id="fake-adb"></script>
+  <script type="application/javascript">
+
+  "use strict";
+
+  var fakeAdbDevice;
+
+  function test_ensureRoot_notNeeded() {
+    distributionContext = {
+      deviceBuilds: [
+        { requiresRoot: false }
+      ]
+    };
+    return test_ensureRoot(false);
+  }
+
+  function runTest() {
+    loadAboutJs()
+      .then(() => Device.init())
+      .then(() => loadFakeDevice())
+      .then(() => test_plugAdbDevice())
+      .then(() => test_ensureRoot_notNeeded())
+      .then(() => test_unplugAdbDevice())
+      .then(() => SimpleTest.finish());
+  }
+
+  setPrefsAndRunTests();
+
+  </script>
+</pre>
+</body>
+</html>

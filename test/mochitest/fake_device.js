@@ -12,12 +12,14 @@ function FakeAdbDevice(serial) {
 FakeAdbDevice.prototype = {
   type:  "adb",
   model: "Fake Device",
+  runAsRoot: false,
   _props: {
     "ro.product.model": "FakeDevice 2.0",
     "ro.bootloader": "1.0.0",
     "ro.build.id": "L"
   },
   _files: { },
+  _services: { },
 
   getModel: function() {
     dump("FakeAdbDevice.getModel()\n");
@@ -43,6 +45,7 @@ FakeAdbDevice.prototype = {
   summonRoot: function() {
     dump("FakeAdbDevice.summonRoot()\n");
     return new Promise((resolve, reject) => {
+      this.runAsRoot = true;
       resolve();
     });
   },
@@ -55,9 +58,19 @@ FakeAdbDevice.prototype = {
 
       switch(args[0]) {
         case "getprop": {
-          Object.keys(this._props).forEach(k => {
-            output += "[" + k + "]: " + "[" + this._props[k] + "]\n";
-          });
+          // getprop xxx
+          if (args[1]) {
+            let propExists = Object.keys(this._props).indexOf(args[1]) !== -1;
+            if (propExists) {
+              output = this._props[args[1]];
+            }
+            output += "\n";
+          } else {
+            // getprop
+            Object.keys(this._props).forEach(k => {
+              output += "[" + k + "]: " + "[" + this._props[k] + "]\n";
+            });
+          }
           break;
         }
 
@@ -78,6 +91,23 @@ FakeAdbDevice.prototype = {
           } else {
             output = "cat: cannot access " + args[1] + ": No such file or directory";
           }
+          break;
+        }
+
+        case "start":
+        case "stop": {
+          let serviceExists = Object.keys(this._services).indexOf(args[1]) !== -1;
+          if (!serviceExists) {
+            return reject("no such service", args[1]);
+          }
+
+          if (args[0] === "start") {
+            this._services[args[1]] = true;
+          } else if (args[0] === "stop") {
+            this._services[args[1]] = false;
+          }
+
+          output = "";
           break;
         }
 
