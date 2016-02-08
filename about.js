@@ -722,12 +722,13 @@ function isSupportedConfig(device, supportedDevice) {
       return reject('not_in_adb_mode');
     }
 
-    // Get all ADB fields and check their values
-    let allAdbFields = {};
     device.shell("getprop").then(props => {
       if (props === '') {
         return reject('failed to fetch props');
       }
+
+      // Get all ADB fields and check their values
+      let allAdbFields = {};
       for (let _line of props.split("\n")) {
         let line = _line.trim();
         if (line.length === 0) {
@@ -760,8 +761,10 @@ function isSupportedConfig(device, supportedDevice) {
       }
 
       if (!anyPropNotGood) {
+        console.debug("Returning match of", device, "against", supportedDevice);
         resolve(supportedDevice);
       } else {
+        console.debug("No match of", device, "against", supportedDevice);
         resolve(false);
       }
 
@@ -776,22 +779,30 @@ function isSupportedConfig(device, supportedDevice) {
  * Relying on Devices.jsm to enumerate all connected devices that have been
  * exposed by the ADBHelper addon.
  **/
-let Device = (function() {
+var Device = (function() {
 
   let devicePromise;
   let evts = {};
 
   function connected() {
+    let av = Devices.available();
+    if (av.length > 1) {
+      console.error("Too many devices plugged in. Aborting.");
+      $("#tooManyDevices")[0].dataset.toomany = "true";
+      return;
+    } else {
+      $("#tooManyDevices")[0].dataset.toomany = "false";
+    }
+
     console.debug("Device.connected(), will create devicePromise");
     devicePromise = new Promise((resolve, reject) => {
-      let devices = Devices.available();
-      if (!devices.length) {
+      let availableDevices = Devices.available();
+      if (!availableDevices.length) {
         console.debug("Empty device list, rejecting");
-        reject();
-        return;
+        return Promise.reject();
       }
 
-      let device = Devices._devices[devices[0]];
+      let device = Devices._devices[availableDevices[0]];
       let waitFun = (device.type === 'adb') ? waitForAdb : waitForFastboot;
 
       waitFun(device).then(() => {
@@ -802,8 +813,7 @@ let Device = (function() {
         }
       }).catch(err => {
         console.debug("Failure while waiting device: ", err);
-        reject();
-        return;
+        return reject();
       });
 
     });
@@ -813,6 +823,13 @@ let Device = (function() {
     devicePromise = null;
     if ('disconnected' in evts) {
       evts.disconnected();
+    }
+
+    let av = Devices.available();
+    if (av.length > 1) {
+      $("#tooManyDevices")[0].dataset.toomany = "true";
+    } else {
+      $("#tooManyDevices")[0].dataset.toomany = "false";
     }
   }
 

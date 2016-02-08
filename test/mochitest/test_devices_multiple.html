@@ -1,0 +1,122 @@
+<!DOCTYPE HTML>
+<html>
+<!--
+https://bugzilla.mozilla.org/show_bug.cgi?id=1234216
+-->
+<head>
+  <meta charset="utf-8">
+  <title>Test for Bug </title>
+  <script type="application/javascript" src="chrome://mochikit/content/tests/SimpleTest/SimpleTest.js"></script>
+  <script type="application/javascript" src="http://mochi.test:8888/chrome/browser/extensions/b2g-installer/test/mochitest/common.js"></script>
+  <link rel="stylesheet" type="text/css" href="chrome://mochikit/content/tests/SimpleTest/test.css"/>
+  </script>
+</head>
+<body>
+<p id="display"></p>
+<div id="content" style="display: none">
+</div>
+<div id="container"></div>
+<pre id="test">
+  <script type="application/javascript" id="fake-adb"></script>
+  <script type="application/javascript">
+
+  "use strict";
+
+  var fakeAdbDeviceOne, fakeAdbDeviceTwo;
+
+  function populateFakeDevices() {
+    return loadFakeDevice().then(() => {
+      fakeAdbDeviceOne = new FakeAdbDevice("deviceNumberOne");
+      fakeAdbDeviceOne.model = "Fake Device One";
+      fakeAdbDeviceOne._props["ro.product.model"] = "Fake Device One";
+      fakeAdbDeviceTwo = new FakeAdbDevice("deviceNumberTwo");
+      fakeAdbDeviceTwo.model = "Fake Device Two";
+      fakeAdbDeviceTwo._props["ro.product.model"] = "Fake Device Two";
+    });
+  }
+
+  function test_plugAdbDevice(_dev, aExpected) {
+    return new Promise((resolve, reject) => {
+      w.Devices.register(_dev._serial, _dev);
+      is(Object.keys(w.Devices._devices).length, aExpected, "Devices._devices has expected element(s): " + aExpected);
+
+      let dev = w.Devices._devices[_dev._serial];
+      ok(dev, "FakeAdbDevice", _dev._serial, "exists");
+
+      setTimeout(() => resolve());
+    });
+  }
+
+  function test_deviceGet(_dev) {
+    return new Promise((resolve, reject) => {
+      w.Device.get().then(device => {
+        ok(true, "Device.get() resolved");
+        is(_dev._serial, device.id, "Device.get() returns good device: " + _dev._serial);
+        resolve();
+      }).catch(err => {
+        console.debug("Device.get() returned error", err);
+        ok(false, "Device.get() should not reject()");
+        reject();
+      });
+    });
+  }
+
+  function test_assert_device(aExpected) {
+    return new Promise((resolve, reject) => {
+      let deviceId = c.getElementById("deviceId");
+      is(deviceId.textContent, aExpected, "Device detected in ADB mode");
+      resolve();
+    });
+  }
+
+  // aExpected = true => too many devices message is displayed
+  function test_too_many_devices(aExpected) {
+    return new Promise((resolve, reject) => {
+      let tooManyDevices = c.querySelector("#tooManyDevices");
+      ok(tooManyDevices, "Too many devices message exists");
+
+      let computed = c.defaultView.getComputedStyle(tooManyDevices);
+      is(computed.visibility, aExpected ? "visible" : "hidden", "Too many devices message visible");
+      resolve();
+    });
+  }
+
+  function test_unplugAdbDevice(_dev, aExpected) {
+    return new Promise((resolve, reject) => {
+      w.Devices.unregister(_dev._serial);
+      is(Object.keys(w.Devices._devices).length, aExpected, "Devices._devices has expected element(s): " + aExpected);
+
+      resolve();
+    });
+  }
+
+  function runTest() {
+    populateAboutB2GInstaller()
+      .then(() => populateFakeDevices())
+      .then(() => test_too_many_devices(false))
+      .then(() => test_plugAdbDevice(fakeAdbDeviceOne, 1))
+      .then(() => test_deviceGet(fakeAdbDeviceOne))
+      .then(() => test_assert_device("Fake Device One"))
+      .then(() => test_too_many_devices(false))
+      .then(() => test_unplugAdbDevice(fakeAdbDeviceOne, 0))
+      .then(() => test_plugAdbDevice(fakeAdbDeviceTwo, 1))
+      .then(() => test_deviceGet(fakeAdbDeviceTwo))
+      .then(() => test_assert_device("Fake Device Two"))
+      .then(() => test_too_many_devices(false))
+      .then(() => test_unplugAdbDevice(fakeAdbDeviceTwo, 0))
+      .then(() => test_plugAdbDevice(fakeAdbDeviceOne, 1))
+      .then(() => test_too_many_devices(false))
+      .then(() => test_plugAdbDevice(fakeAdbDeviceTwo, 2))
+      .then(() => test_assert_device("Fake Device One"))
+      .then(() => test_too_many_devices(true))
+      .then(() => test_unplugAdbDevice(fakeAdbDeviceTwo, 1))
+      .then(() => test_unplugAdbDevice(fakeAdbDeviceOne, 0))
+      .then(() => test_too_many_devices(false))
+      .then(() => SimpleTest.finish());
+  }
+
+  setPrefsAndRunTests();
+
+  </script>
+</pre>
+</body>
