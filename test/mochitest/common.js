@@ -79,9 +79,15 @@ function populateAboutB2GInstaller() {
   });
 }
 
-function setPrefsAndRunTests() {
+function setPrefsAndRunTests(extraPrefs) {
+  let defaultPrefs = [
+    ["extensions.b2g-installer@mozilla.org.builds", "http://mochi.test:8888/chrome/browser/extensions/b2g-installer/test/mochitest/builds.json"]
+  ];
+
+  if (extraPrefs) {
+    defaultPrefs.push(extraPrefs);
+  }
+
   SimpleTest.waitForExplicitFinish();
-  SpecialPowers.pushPrefEnv({"set": [
-    ["extensions.b2g-installer@mozilla.org.builds", "http://mochi.test:8888/chrome/browser/extensions/b2g-installer/test/mochitest/builds.json"],
-  ]}, runTest);
+  SpecialPowers.pushPrefEnv({"set": defaultPrefs}, runTest);
 }

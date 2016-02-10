@@ -12,6 +12,7 @@ Cu.import("resource://gre/modules/NetUtil.jsm");
 Cu.import("resource://gre/modules/FileUtils.jsm");
 Cu.import("resource://gre/modules/ZipUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
+Cu.import("resource://gre/modules/TelemetryController.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 
 // In Firefox 44 and later, many DevTools modules were relocated.
@@ -728,7 +729,7 @@ function isSupportedConfig(device, supportedDevice) {
       }
 
       // Get all ADB fields and check their values
-      let allAdbFields = {};
+      device._readProps = {};
       for (let _line of props.split("\n")) {
         let line = _line.trim();
         if (line.length === 0) {
@@ -740,7 +741,7 @@ function isSupportedConfig(device, supportedDevice) {
           key = key.slice(1, -1);
           if (value.slice(0, 1) === "[" && value.slice(-1) === "]") {
             value = value.slice(1, -1);
-            allAdbFields[key] = value;
+            device._readProps[key] = value;
           }
         }
       }
@@ -749,7 +750,7 @@ function isSupportedConfig(device, supportedDevice) {
       for (let prop in supportedDevice.adb) {
         let values = supportedDevice.adb[prop];
 
-        let propVal = allAdbFields[prop];
+        let propVal = device._readProps[prop];
         let isOk = (typeof values === "object") ?
           (values.indexOf(propVal) !== -1) : (values === propVal);
 
@@ -1250,12 +1251,16 @@ function step(step, fun) {
   };
 }
 
+function getBuildUrl() {
+  let radioChecked = $('input[type=radio]:checked')[0];
+  return radioChecked ? radioChecked.value : "file://no/build/nothingReally";
+}
+
 // Downloads the blob free build from the server to a local
 // tmp file
 // TODO: cache
 function downloadBuild() {
-
-  let buildUrl = $('input[type=radio]:checked')[0].value;
+  let buildUrl = getBuildUrl()
 
   // If the build value isnt a url, its a local file the user uploaded
   // and we can skip the download
@@ -1285,25 +1290,105 @@ function downloadBuild() {
   });
 }
 
+function produceTelemetryFlashPayload() {
+  let devProps = (deviceContext && deviceContext.adbDevice) ? deviceContext.adbDevice._readProps : { };
+  let buildURL = getBuildUrl();
+  if (!/^http/.test(buildURL)) {
+    // We don't really care about the whole path on the user's computer
+    // and it might improve a bit privacy?
+    buildURL = buildURL.split(":").shift() + "://(...)/" + buildURL.split('/').pop();
+  }
+  let keepData = document.getElementById("keep-b2g-data");
+
+  return {
+    // a supported device would have had at least one build
+    isSupported: $('#devices h4').length > 0,
+    bootloader: devProps["ro.bootloader"],
+    buildid: devProps["ro.build.id"],
+    manufacturer: devProps["ro.product.manufacturer"],
+    model: devProps["ro.product.model"],
+    cm: devProps["ro.cm.device"],
+    runsB2G: deviceContext ? deviceContext.runsB2G : null,
+    buildURL: buildURL,
+    keepData: keepData ? keepData.checked : null
+  };
+}
+
+const kTelemetryPref = "extensions.b2g-installer@mozilla.org.telemetry";
+function getTelemetryAccepted() {
+  let telemetryAccepted = false;
+  try {
+    telemetryAccepted = Services.prefs.getBoolPref(kTelemetryPref);
+    console.debug("Read from pref", kTelemetryPref, telemetryAccepted);
+  } catch (e) {
+    console.debug("Error reading from pref", e);
+  }
+  return telemetryAccepted;
+}
+
+function setTelemetryAccepted(accept = false) {
+  if (accept instanceof Event) {
+    console.debug("Received change event, checking target value");
+    accept = accept.target.checked;
+  }
+
+  console.debug("setTelemetryAccepted():", accept);
+  try {
+    Services.prefs.setBoolPref(kTelemetryPref, accept);
+    console.debug("setTelemetryAccepted(): setBoolPref() SUCCESS");
+  } catch (ex) {
+    console.debug("setTelemetryAccepted(): setBoolPref() FAILURE", ex);
+  }
+}
+
+function sendTelemetryIfOptin(aName, aPayload) {
+  // Send if user accepted *and* we are not in a risky code path. Risky code
+  // is during the install() steps, where we will root device for example
+  // which causes ADB to disconnect/reconnect
+  if (getTelemetryAccepted() && !isRisky()) {
+    TelemetryController.submitExternalPing(aName, aPayload);
+  } else {
+    console.log("Not sending telemetry", aName, "because user disallows.");
+  }
+}
+
 function install() {
   return new Promise((resolve, reject) => {
     _isRisky = true;
+
+    let telemetryPayload;
     downloadProgress('downloading');
     downloadBuild()
       .then(step('extracting', distributionStep))
       .then(step('fetching', deviceStep))
+      .then(() => {
+        telemetryPayload = produceTelemetryFlashPayload();
+        return Promise.resolve();
+      })
       .then(step('creating', imageStep))
       .then(step('flashing', flashStep))
       .then(() => {
         _isRisky = false;
         $('#progressDialog')[0].style.display = 'none';
         $('#confirmDialog')[0].style.display = 'block';
+
+        telemetryPayload.installResult = true;
+        sendTelemetryIfOptin("b2g-installer-flash", telemetryPayload);
         return resolve();
       }).catch(e => {
         _isRisky = false;
         console.error('Installing failed');
         console.error(e);
         downloadProgressFailure('! FAILURE ! Please file a bug with console content !');
+
+        // Just be safe, test_install_risky is able to trigger this.
+        // Better to have incomplete failure report than nothing at all.
+        if (!telemetryPayload) {
+          telemetryPayload = produceTelemetryFlashPayload();
+        }
+
+        telemetryPayload.installResult = false;
+        sendTelemetryIfOptin("b2g-installer-flash", telemetryPayload);
         return reject();
       });
   });
@@ -1332,7 +1417,7 @@ function buildChecked(checked) {
 // Device is connected, display to the user then show list of
 // available builds to install
 function deviceConnected() {
-  let device;
+  let device, supportedDevice = false;
   Device.get().then(_device => {
     device = _device;
     if (device.type !== "adb") {
@@ -1351,18 +1436,30 @@ function deviceConnected() {
       // it up from the configuration name
       deviceName = builds[0].id;
       $('#devices')[0].innerHTML = builds.map(drawRow).join('');
+      supportedDevice = true;
     } else {
       $('#noDevice')[0].innerHTML = drawUnsupported(
         {
           name: device.model || device.id,
           description: "No build is available for this device, but you can use a local blobfree distribution if that is available."
         });
+      supportedDevice = false;
     }
 
     $('#deviceId')[0].textContent = deviceName;
 
     return checkDeviceIsB2G(device);
   }).then(isB2G => {
+    let devProps = device ? device._readProps : { };
+    let telemetryPayload = {
+      isSupported: supportedDevice,
+      bootloader: device._readProps["ro.bootloader"],
+      buildid: device._readProps["ro.build.id"],
+      manufacturer: device._readProps["ro.product.manufacturer"],
+      model: device._readProps["ro.product.model"],
+      cm: device._readProps["ro.cm.device"]
+    };
+    sendTelemetryIfOptin("b2g-installer-device", telemetryPayload);
     console.debug("Has verified B2G:", isB2G);
     $("#keep-data")[0].dataset.isb2g = isB2G ? "true" : "false";
     console.debug("Keepdata set:", $("#keep-data")[0].dataset.isb2g);
@@ -1531,6 +1628,9 @@ addEventListener("load", function load() {
   $('#devices')[0].addEventListener('change', buildChecked.bind(null));
   $('#installBtn')[0].addEventListener('click', install.bind(null));
   $('#confirmDialog button')[0].addEventListener('click', done.bind(null));
+
+  $('#telemetry-allow')[0].checked = getTelemetryAccepted();
+  $('#telemetry-allow')[0].addEventListener('change', setTelemetryAccepted.bind(null));
 
   Device.on('connected', deviceConnected.bind(null, true));
   Device.on('disconnected', deviceDisconnected.bind(null, true));
