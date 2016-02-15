@@ -15,9 +15,11 @@ Quick cheat:
 
 Releasing updates:
  - increment ADDON_VERSION
- - make update.rdf
  - produce all platform XPIs, name them as "b2g-installer-@@ADDON_VERSION@@-@@PLATFORM@@.xpi"
- - git checkout gh-pages
- - copy new XPI, update links in index.html
- - unzip updates.zip
- - commit and push to github as gh-pages
+ - copy in the repo
+ - verify index.html.tmpl
+ - XPIS="..." make dorelease
+ - ... should generate and update verything
+ - ... should commit new version
+ - ... should tag new version
+ - verify and |git push| to github
