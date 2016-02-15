@@ -3,7 +3,7 @@ FILES=about.css about.js about.xhtml bootstrap.js imaging_tools.js main.js subpr
 ADDON_VERSION ?= 0.9.1
 
 XPI_NAME=b2g-installer-$(ADDON_VERSION)
-XPIS = $(XPI_NAME)-linux.xpi $(XPI_NAME)-linux64.xpi $(XPI_NAME)-mac64.xpi
+XPIS ?= $(XPI_NAME)-linux.xpi $(XPI_NAME)-linux64.xpi $(XPI_NAME)-mac64.xpi
 
 UPDATE_URL    ?= https://lissyx.github.io/b2g-installer/@@PLATFORM@@/update.rdf
 UPDATE_LINK   ?= https://lissyx.github.io/b2g-installer/${XPI_NAME}-@@PLATFORM@@.xpi
@@ -45,25 +45,25 @@ mac64/update.rdf:
 
 .PHONY: linux/update.rdf linux64/update.rdf mac64/update.rdf update.rdf
 update.rdf: linux/update.rdf linux64/update.rdf mac64/update.rdf
-	zip updates.zip $^
+
+.PHONY: index.html
+index.html: index.html.tmpl
+	sed -e 's#@@ADDON_VERSION@@#$(ADDON_VERSION)#' index.html.tmpl > index.html
+
+updates.zip: update.rdf index.html
+	zip updates.zip */update.rdf index.html $(XPIS)
 	echo "PLEASE REMEMBER TO unzip updates.zip AFTER |git checkout gh-pages|"
 
-define build-xpi
-	echo "build xpi for $1";
-	zip $(XPI_NAME)-$1.xpi -r $2 install.rdf
-endef
-
-# $(XPI_NAME)-win32.xpi: $(FILES) subprocess_worker_win.js win32
-#	@$(call build-xpi,win32, $^)
-
-$(XPI_NAME)-linux.xpi: $(FILES) install.rdf subprocess_worker_unix.js linux
-	@$(call build-xpi,linux, $^)
-
-$(XPI_NAME)-linux64.xpi: $(FILES) install.rdf subprocess_worker_unix.js linux64
-	@$(call build-xpi,linux64, $^)
-
-$(XPI_NAME)-mac64.xpi: $(FILES) install.rdf subprocess_worker_unix.js mac64
-	@$(call build-xpi,mac64, $^)
+dorelease: $(XPIS) updates.zip
+	echo "XPIs for version $(ADDON_VERSION) are ready"
+	echo "Update manifest are ready"
+	echo "Index page is ready"
+	rm b2g-installer-*.xpi
+	git checkout gh-pages
+	git rm b2g-installer-*.xpi
+	unzip -o updates.zip
+	git add index.html */update.rdf $(XPIS)
+	git commit -m "Pushing release v$(ADDON_VERSION)" && git tag b2g-installer-v$(ADDON_VERSION)
 
 clean:
 	rm -f $(XPI_NAME)*.xpi
