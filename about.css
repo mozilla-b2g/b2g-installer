@@ -47,7 +47,8 @@ ul {
   background: url(Firefox_Installer_Title.png) no-repeat top center;
 }
 
-#wrapper {
+#wrapper,
+#telemetry {
   max-width: 950px;
   display: flex;
   overflow: hidden;

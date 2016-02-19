@@ -124,24 +124,30 @@ function cleanupTmpDir(zipFileName, checkDataImg, expectedSize) {
     ok(rootDir.isDirectory(), "target directory exists");
 
     let images  = OS.Path.join(root, "images");
-    let bootImg = new FileUtils.File(OS.Path.join(images, "boot.img"));
-    let recoveryImg = new FileUtils.File(OS.Path.join(images, "recovery.img"));
-    let dataImg = new FileUtils.File(OS.Path.join(images, "data.img"));
-    let systemImg = new FileUtils.File(OS.Path.join(images, "system.img"));
 
-    ok(bootImg.exists(), "boot image file is here");
-    is(bootImg.fileSize, expectedSize.bootImg, "boot image file is proper size");
+    if (expectedSize.bootImg) {
+      let bootImg = new FileUtils.File(OS.Path.join(images, "boot.img"));
+      ok(bootImg.exists(), "boot image file is here");
+      is(bootImg.fileSize, expectedSize.bootImg, "boot image file is proper size");
+    }
 
-    ok(recoveryImg.exists(), "recovery image file is here");
-    is(recoveryImg.fileSize, expectedSize.recoveryImg, "recovery image file is proper size");
+    if (expectedSize.recoveryImg) {
+      let recoveryImg = new FileUtils.File(OS.Path.join(images, "recovery.img"));
+      ok(recoveryImg.exists(), "recovery image file is here");
+      is(recoveryImg.fileSize, expectedSize.recoveryImg, "recovery image file is proper size");
+    }
 
-    if (checkDataImg === true) {
+    if (expectedSize.dataImg && checkDataImg === true) {
+      let dataImg = new FileUtils.File(OS.Path.join(images, "data.img"));
       ok(dataImg.exists(), "data image file is here");
       is(dataImg.fileSize, expectedSize.dataImg, "data image file is proper size");
     }
 
-    ok(systemImg.exists(), "system image file is here");
-    is(systemImg.fileSize, expectedSize.systemImg, "system image file is proper size");
+    if (expectedSize.systemImg) {
+      let systemImg = new FileUtils.File(OS.Path.join(images, "system.img"));
+      ok(systemImg.exists(), "system image file is here");
+      is(systemImg.fileSize, expectedSize.systemImg, "system image file is proper size");
+    }
 
     rootDir.remove(/* recursive */ true);
     ok(!rootDir.exists(), "target directory exists no more");

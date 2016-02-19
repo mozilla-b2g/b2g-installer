@@ -1,0 +1,139 @@
+<!DOCTYPE HTML>
+<html>
+<!--
+https://bugzilla.mozilla.org/show_bug.cgi?id=1236642
+-->
+<head>
+  <meta charset="utf-8">
+  <title>Test for Bug </title>
+  <script type="application/javascript" src="chrome://mochikit/content/tests/SimpleTest/SimpleTest.js"></script>
+  <script type="application/javascript" src="http://mochi.test:8888/chrome/browser/extensions/b2g-installer/test/mochitest/common.js"></script>
+  <link rel="stylesheet" type="text/css" href="chrome://mochikit/content/tests/SimpleTest/test.css"/>
+  </script>
+</head>
+<body>
+<p id="display"></p>
+<div id="content" style="display: none">
+</div>
+<div id="container"></div>
+<pre id="test">
+  <script type="application/javascript" id="fake-adb"></script>
+  <script type="application/javascript">
+
+  "use strict";
+
+  var fakeAdbDeviceSupported, fakeAdbDeviceUnsupported;
+
+  var realTelemetryController;
+  var mockTelemetryController = {
+    __sentPings: [ ],
+    submitExternalPing: function(aType, aPayload, aOptions) {
+      this.__sentPings.push({ "type": aType, "payload": aPayload });
+      return;
+    }
+  };
+
+  function populateFakeDevices() {
+    return loadFakeDevice().then(() => {
+      fakeAdbDeviceSupported   = new FakeAdbDevice();
+      fakeAdbDeviceSupported._props["ro.product.model"]   = "FakeDevice 1.0";
+      fakeAdbDeviceUnsupported = new FakeAdbDevice();
+      fakeAdbDeviceUnsupported._props["ro.product.model"] = "FakeDevice 4.0";
+      fakeAdbDeviceUnsupported._props["ro.cm.device"]     = "CMDev";
+    });
+  }
+
+  function test_plugAdbDevice(_dev) {
+    return new Promise((resolve, reject) => {
+      w.Devices.register(_dev._serial, _dev);
+      is(Object.keys(w.Devices._devices).length, 1, "Devices._devices has one element");
+
+      let dev = w.Devices._devices[_dev._serial];
+      ok(dev, "FakeAdbDevice", _dev._serial, "exists");
+
+      setTimeout(() => resolve());
+    });
+  }
+
+  function test_unplugAdbDevice(_dev) {
+    return new Promise((resolve, reject) => {
+      w.Devices.unregister(_dev._serial);
+      is(Object.keys(w.Devices._devices).length, 0, "Devices._devices has 0 element");
+
+      resolve();
+    });
+  }
+
+  function assert_no_device_ping() {
+    let pings = mockTelemetryController.__sentPings;
+    is(pings.length, 0, "has sent no ping");
+  }
+
+  function assert_supported_device_ping() {
+    let pings = mockTelemetryController.__sentPings;
+    is(pings.length, 1, "has sent one ping");
+
+    let ping = pings[0];
+    is(ping.type, "b2g-installer-device", "external ping type");
+    is(ping.payload.isSupported, true, "plugged a supported device");
+    is(ping.payload.buildid, "L", "buildid of supported device");
+    is(ping.payload.bootloader, "1.0.0", "bootloader of supported device");
+    is(ping.payload.manufacturer, "Mozilla", "manufacturer of supported device");
+    is(ping.payload.model, "FakeDevice 1.0", "detected supported device model");
+    is(ping.payload.cm, undefined, "detected supported non CM device model");
+  }
+
+  function assert_unsupported_device_ping() {
+    let pings = mockTelemetryController.__sentPings;
+    is(pings.length, 2, "has sent two pings");
+
+    let ping = pings[1];
+    is(ping.type, "b2g-installer-device", "external ping type");
+    is(ping.payload.isSupported, false, "plugged a non supported device");
+    is(ping.payload.buildid, "L", "buildid of non supported device");
+    is(ping.payload.bootloader, "1.0.0", "bootloader of non supported device");
+    is(ping.payload.manufacturer, "Mozilla", "manufacturer of non supported device");
+    is(ping.payload.model, "FakeDevice 4.0", "detected non supported device model");
+    is(ping.payload.cm, "CMDev", "detected non supported CM device model");
+  }
+
+  function runTest() {
+    populateAboutB2GInstaller()
+      .then(() => {
+        realTelemetryController = w.TelemetryController;
+        w.TelemetryController = mockTelemetryController;
+        w._isRisky = false;
+      })
+      .then(() => populateFakeDevices())
+      .then(() => assert_no_device_ping())
+      .then(() => test_plugAdbDevice(fakeAdbDeviceSupported))
+      .then(() => assert_supported_device_ping())
+      .then(() => test_unplugAdbDevice(fakeAdbDeviceSupported))
+      .then(() => assert_supported_device_ping())
+      .then(() => test_plugAdbDevice(fakeAdbDeviceUnsupported))
+      .then(() => assert_unsupported_device_ping())
+      .then(() => test_unplugAdbDevice(fakeAdbDeviceUnsupported))
+      .then(() => assert_unsupported_device_ping())
+      .then(() => {
+        mockTelemetryController.__sentPings = [];
+        w._isRisky = true;
+      })
+      .then(() => assert_no_device_ping())
+      .then(() => test_plugAdbDevice(fakeAdbDeviceSupported))
+      .then(() => test_plugAdbDevice(fakeAdbDeviceUnsupported))
+      .then(() => assert_no_device_ping())
+      .then(() => test_unplugAdbDevice(fakeAdbDeviceUnsupported))
+      .then(() => test_unplugAdbDevice(fakeAdbDeviceSupported))
+      .then(() => assert_no_device_ping())
+      .then(() => {
+        w.TelemetryController = realTelemetryController;
+        w._isRisky = false;
+      })
+      .then(() => SimpleTest.finish());
+  }
+
+  setPrefsAndRunTests(["extensions.b2g-installer@mozilla.org.telemetry", true]);
+
+  </script>
+</pre>
+</body>

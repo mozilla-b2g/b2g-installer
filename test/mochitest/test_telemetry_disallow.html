@@ -1,0 +1,83 @@
+<!DOCTYPE HTML>
+<html>
+<!--
+https://bugzilla.mozilla.org/show_bug.cgi?id=1236642
+-->
+<head>
+  <meta charset="utf-8">
+  <title>Test for Bug </title>
+  <script type="application/javascript" src="chrome://mochikit/content/tests/SimpleTest/SimpleTest.js"></script>
+  <script type="application/javascript" src="http://mochi.test:8888/chrome/browser/extensions/b2g-installer/test/mochitest/common.js"></script>
+  <link rel="stylesheet" type="text/css" href="chrome://mochikit/content/tests/SimpleTest/test.css"/>
+  </script>
+</head>
+<body>
+<p id="display"></p>
+<div id="content" style="display: none">
+</div>
+<div id="container"></div>
+<pre id="test">
+  <script type="application/javascript" id="fake-adb"></script>
+  <script type="application/javascript">
+
+  "use strict";
+
+  var realTelemetryController;
+  var mockTelemetryController = {
+    __sentPings: [ ],
+    submitExternalPing: function(aType, aPayload, aOptions) {
+      this.__sentPings.push({ "type": aType, "payload": aPayload });
+      return;
+    }
+  };
+
+  function assert_checkbox_checked() {
+    let checkbox = c.getElementById("telemetry-allow");
+    ok(checkbox, "has a checkbox to allow telemetry");
+    is(checkbox.checked, true, "telemetry checkbox is checked");
+  }
+
+  function click_notallow_telemetry() {
+    return new Promise((resolve, reject) => {
+      let checkbox = c.getElementById("telemetry-allow");
+      ok(checkbox, "has a checkbox to allow telemetry");
+
+      // tick the checkbox to toggle the pref and allow telemetry
+      checkbox.checked = false;
+      checkbox.dispatchEvent(new Event('change'));
+
+      setTimeout(() => resolve());
+    });
+  }
+
+  function test_send_ping() {
+    w.sendTelemetryIfOptin("name", {});
+  }
+
+  function assert_failure_ping() {
+    let pings = mockTelemetryController.__sentPings;
+    is(pings.length, 0, "has sent no ping");
+  }
+
+  function runTest() {
+    populateAboutB2GInstaller()
+      .then(() => {
+        realTelemetryController = w.TelemetryController;
+        w.TelemetryController   = mockTelemetryController;
+      })
+      .then(() => assert_checkbox_checked())
+      .then(() => click_notallow_telemetry())
+      .then(() => test_send_ping())
+      .then(() => assert_failure_ping())
+      .then(() => {
+        w.TelemetryController   = realTelemetryController;
+      })
+      .then(()  => SimpleTest.finish());
+  }
+
+  setPrefsAndRunTests(["extensions.b2g-installer@mozilla.org.telemetry", true]);
+
+  </script>
+</pre>
+</body>
+</html>

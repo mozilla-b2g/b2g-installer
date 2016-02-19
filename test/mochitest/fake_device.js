@@ -8,6 +8,7 @@ function FakeAdbDevice(serial) {
   this._serial = serial || "88ccd442e1131";
   this._props  = {
     "ro.product.model": "FakeDevice 2.0",
+    "ro.product.manufacturer": "Mozilla",
     "ro.bootloader": "1.0.0",
     "ro.build.id": "L"
   };

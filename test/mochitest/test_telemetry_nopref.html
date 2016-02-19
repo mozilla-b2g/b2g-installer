@@ -1,0 +1,43 @@
+<!DOCTYPE HTML>
+<html>
+<!--
+https://bugzilla.mozilla.org/show_bug.cgi?id=1236642
+-->
+<head>
+  <meta charset="utf-8">
+  <title>Test for Bug </title>
+  <script type="application/javascript" src="chrome://mochikit/content/tests/SimpleTest/SimpleTest.js"></script>
+  <script type="application/javascript" src="http://mochi.test:8888/chrome/browser/extensions/b2g-installer/test/mochitest/common.js"></script>
+  <script type="application/javascript" src="http://mochi.test:8888/chrome/browser/extensions/b2g-installer/test/mochitest/flash_device.js"></script>
+  <link rel="stylesheet" type="text/css" href="chrome://mochikit/content/tests/SimpleTest/test.css"/>
+  </script>
+</head>
+<body>
+<p id="display"></p>
+<div id="content" style="display: none">
+</div>
+<div id="container"></div>
+<pre id="test">
+  <script type="application/javascript" id="fake-adb"></script>
+  <script type="application/javascript">
+
+  "use strict";
+
+  function assert_checkbox_notchecked() {
+    let checkbox = c.getElementById("telemetry-allow");
+    ok(checkbox, "has a checkbox to allow telemetry");
+    is(checkbox.checked, false, "telemetry checkbox is not checked");
+  }
+
+  function runTest() {
+    populateAboutB2GInstaller()
+      .then(() => assert_checkbox_notchecked())
+      .then(() => SimpleTest.finish());
+  }
+
+  setPrefsAndRunTests(["extensions.b2g-installer@mozilla.org.telemetry", false]);
+
+  </script>
+</pre>
+</body>
+</html>

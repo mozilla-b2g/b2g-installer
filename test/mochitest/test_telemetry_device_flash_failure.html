@@ -1,0 +1,108 @@
+<!DOCTYPE HTML>
+<html>
+<!--
+https://bugzilla.mozilla.org/show_bug.cgi?id=1236642
+-->
+<head>
+  <meta charset="utf-8">
+  <title>Test for Bug </title>
+  <script type="application/javascript" src="chrome://mochikit/content/tests/SimpleTest/SimpleTest.js"></script>
+  <script type="application/javascript" src="http://mochi.test:8888/chrome/browser/extensions/b2g-installer/test/mochitest/common.js"></script>
+  <script type="application/javascript" src="http://mochi.test:8888/chrome/browser/extensions/b2g-installer/test/mochitest/flash_device.js"></script>
+  <link rel="stylesheet" type="text/css" href="chrome://mochikit/content/tests/SimpleTest/test.css"/>
+  </script>
+</head>
+<body>
+<p id="display"></p>
+<div id="content" style="display: none">
+</div>
+<div id="container"></div>
+<pre id="test">
+  <script type="application/javascript" id="fake-adb"></script>
+  <script type="application/javascript">
+
+  "use strict";
+
+  var deviceBlobfree;
+
+  var realTelemetryController;
+  var mockTelemetryController = {
+    __sentPings: [ ],
+    submitExternalPing: function(aType, aPayload, aOptions) {
+      this.__sentPings.push({ "type": aType, "payload": aPayload });
+      return;
+    }
+  };
+
+  var realImageStep;
+  var mockImageStep = function() {
+    return new Promise((resolve, reject) => {
+      console.debug("MockImageStep: reject()ing Promise");
+      return reject();
+    });
+  };
+
+  function assert_failure_ping() {
+    let pings = mockTelemetryController.__sentPings;
+    is(pings.length, 1, "has sent one ping");
+
+    let ping = pings[0];
+    is(ping.type, "b2g-installer-flash", "external ping type");
+
+    is(ping.payload.isSupported, true, "supported device flash failure");
+    is(ping.payload.buildid, "L", "buildid of device");
+    is(ping.payload.bootloader, "1.0.0", "bootloader of device");
+    is(ping.payload.manufacturer, "Mozilla", "manufacturer of device");
+    is(ping.payload.model, "FakeDevice 2.0", "detected device model");
+    is(ping.payload.cm, undefined, "detected non CM device model");
+
+    // local builds will be file:/// and we just keep the filename
+    is(ping.payload.buildURL, "http://mochi.test:8888/chrome/browser/extensions/b2g-installer/test/mochitest/fake.nightly-userdebug.zip", "URL of the build flashed");
+    is(ping.payload.keepData, true, "keep previous data of b2g");
+    is(ping.payload.runsB2G, true, "device was already running b2g");
+
+    is(ping.payload.installResult, false, "installation failed");
+  }
+
+  function runTest() {
+    populateAboutB2GInstaller()
+      .then(() => populateFakeDevices())
+      .then(() => {
+        fakeAdbDevice._files = { "/system/b2g/application.ini": "" };
+        fakeAdbDevice._props["ro.build.type"] = "eng";
+        fakeAdbDevice._props["ro.debuggable"] = "1";
+        fakeAdbDevice._services["b2g"] = true;
+      })
+      .then(() => {
+        realTelemetryController = w.TelemetryController;
+        realImageStep           = w.imageStep;
+        w.TelemetryController   = mockTelemetryController;
+        w.imageStep             = mockImageStep;
+      })
+      .then(() => test_plugAdbDevice())
+      .then(select_build.bind(this, 0))
+      .then(zipFileName => deviceBlobfree = zipFileName)
+      .then(() => {
+        mockTelemetryController.__sentPings = [];
+      })
+      .then(() => w.install())
+      .then(() => {
+        ok(false, "Unexpected success of flashing");
+      }).catch(err => {
+        ok(true, "Expected failure during imageStep");
+      }).then(() => assert_failure_ping())
+      .then(() => {
+        w.TelemetryController = realTelemetryController;
+        w.imageStep           = realImageStep;
+        return cleanupTmpDir(deviceBlobfree, false, { zipFile: 1264564 });
+      })
+      .then(() => test_unplugAdbDevice())
+      .then(() => SimpleTest.finish());
+  }
+
+  setPrefsAndRunTests(["extensions.b2g-installer@mozilla.org.telemetry", true]);
+
+  </script>
+</pre>
+</body>
+</html>
