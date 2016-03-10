@@ -1,4 +1,4 @@
-From d80eb883f03ed63d4d14008eb785c46a1536e037 Mon Sep 17 00:00:00 2001
+From 829fe459a7a9d125af53225471123a97f529e81d Mon Sep 17 00:00:00 2001
 From: Alexandre Lissy <lissyx@lissyx.dyndns.org>
 Date: Thu, 28 Jan 2016 21:08:35 +0100
 Subject: [PATCH] Bug 1235459 - Make use of b2g-installer included r=daleharvey
@@ -8,7 +8,7 @@ Subject: [PATCH] Bug 1235459 - Make use of b2g-installer included r=daleharvey
  1 file changed, 1 insertion(+)
 
 diff --git a/browser/extensions/moz.build b/browser/extensions/moz.build
-index 11279a1..fb54e24 100644
+index c4ec4c8..bc613ee 100644
 --- a/browser/extensions/moz.build
 +++ b/browser/extensions/moz.build
 @@ -5,6 +5,7 @@
@@ -16,9 +16,9 @@ index 11279a1..fb54e24 100644
  
  DIRS += [
 +    'b2g-installer',
+     'e10srollout',
      'loop',
      'pdfjs',
-     'pocket',
 -- 
 2.5.0
 
