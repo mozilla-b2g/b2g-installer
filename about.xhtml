@@ -31,6 +31,15 @@
         <ul id="devices"></ul>
         <ul id="noDevice"></ul>
         <input id="userBuild" type="file" value="Upload your own build" />
+        <template id="buildItemTemplate">
+          <li><label class="build">
+            <input type="radio" value="" name="build" /><!-- value: build.url -->
+            <div class="description">
+              <h4></h4><!-- build.name  -->
+              <span></span><!-- build.description -->
+            </div>
+          </label></li>
+        </template>
       </section>
 
       <section class="flash">

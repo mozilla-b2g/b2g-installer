@@ -36,7 +36,7 @@ const kContent     = "content";
 const kBlobs       = "blobs";
 const kImages      = "images";
 
-const kAppIni      = "/system/b2g/application.ini"
+const kAppIni      = "/system/b2g/application.ini";
 
 let CONFIG_URL;
 try {
@@ -88,7 +88,7 @@ function xhr(url, opts) {
  **/
 function getBlobs(device, root, map) {
   console.debug("Pulling blobs ...");
-  if (!device || !device.type === "adb") {
+  if (!device || device.type !== "adb") {
     console.error("Device", device, "is not valid");
     return Promise.reject("notready");
   }
@@ -241,10 +241,10 @@ function buildBootable(root, to) {
           options.dt = deviceTree.path;
         }
 
-        for (let i = 0; i < results.length; i++) {
+        for (var i = 0; i < results.length; i++) {
           let filename = filesToRead[i];
           options[filename] = results[i].trim();
-        };
+        }
 
         console.debug("Prepared options", options);
 
@@ -755,7 +755,7 @@ function isSupportedConfig(device, supportedDevice) {
           (values.indexOf(propVal) !== -1) : (values === propVal);
 
         if (!isOk) {
-          console.debug("Property match failure", prop, "expected one of", values, "but got", propVal)
+          console.debug("Property match failure", prop, "expected one of", values, "but got", propVal);
           anyPropNotGood = true;
           break;
         }
@@ -1029,7 +1029,7 @@ function deviceStep(evt) {
     return readApplicationIni(adbDevice);
   }).then(appIni => {
     console.log("Read appIni: ", appIni);
-    applicationIni = appIni
+    applicationIni = appIni;
     if (runsB2G) {
       return stopB2GOrDisableLockScreen(adbDevice);
     } else {
@@ -1120,7 +1120,7 @@ function flashStep(evt) {
 
     console.log("Devices enumerated, MUST be fastboot", fastbootDevice);
 
-    if (!fastbootDevice.type === "fastboot") {
+    if (fastbootDevice.type !== "fastboot") {
       console.error("We should have been into fastboot mode :(");
       return Promise.reject();
     }
@@ -1168,27 +1168,24 @@ function flashStep(evt) {
   });
 }
 
-function drawBuild(build) {
-  return `<li><label class="build">
-    <input type="radio" value="${build.url}" name="build" />
-    <div class="description">
-      <h4>${build.name}</h4>
-      <span>${build.description}</span>
-    </div>
-  </label></li>`;
-}
+/**
+ * Create the list item from HTML template.
+ * @param {Object} build - The build data of target device.
+ * @param {Boolean} isSupported - Whether device supports the build or not.
+ * @returns {Object} - documentFragment object.
+ **/
+function drawBuild(build, isSupported) {
+  var tmpl = document.querySelector("#buildItemTemplate");
+  if (isSupported && build.url) {
+    tmpl.content.querySelector("input").value = encodeURI(build.url);
+    tmpl.content.querySelector("input").style.display = "inherit";
+  } else {
+    tmpl.content.querySelector("input").style.display = "none";
+  }
+  tmpl.content.querySelector("h4").textContent = build.name;
+  tmpl.content.querySelector("span").textContent = build.description;
 
-function drawUnsupported(build) {
-  return `<li><label class="build">
-    <div class="description">
-      <h4>${build.name}</h4>
-      <span>${build.description}</span>
-    </div>
-  </label></li>`;
-}
-
-function drawRow(device) {
-  return device.builds.map(drawBuild).join('');
+  return document.importNode(tmpl.content, true);
 }
 
 function percentStr(current, total) {
@@ -1227,7 +1224,7 @@ function downloadProgressFailure(info) {
   var steps = ['downloading', 'extracting', 'fetching', 'creating', 'flashing'];
   steps.forEach(function(step) {
     var li = $('.' + step)[0];
-    let isPending    = li.classList.contains('pending')
+    let isPending    = li.classList.contains('pending');
     let isInProgress = li.classList.contains('inprogress');
     if (isPending || isInProgress) {
       li.classList.remove('inprogress');
@@ -1260,7 +1257,7 @@ function getBuildUrl() {
 // tmp file
 // TODO: cache
 function downloadBuild() {
-  let buildUrl = getBuildUrl()
+  let buildUrl = getBuildUrl();
 
   // If the build value isnt a url, its a local file the user uploaded
   // and we can skip the download
@@ -1398,18 +1395,17 @@ function install() {
 // SELECT BUILD
 function buildAdded(evt) {
   var file = evt.target.files[0];
-  var row = drawBuild({
-    url: file.mozFullPath,
-    name: file.name,
-    description: ''
-  });
-  $('#devices')[0].insertAdjacentHTML('beforeend', row);
+  $('#devices')[0].appendChild(drawBuild({
+      url: file.mozFullPath,
+      name: file.name,
+      description: ''
+    }, true));
   $('#devices li:last-child input')[0].setAttribute('checked', 'checked');
   buildChecked();
 }
 
 function buildChecked(checked) {
-  currentStep('flash')
+  currentStep('flash');
 }
 
 // CONNECT DEVICE
@@ -1435,15 +1431,23 @@ function deviceConnected() {
       // We dont get a human readable name from the device, pick
       // it up from the configuration name
       deviceName = builds[0].id;
-      $('#devices')[0].innerHTML = builds.map(drawRow).join('');
       supportedDevice = true;
+      var buildItems = document.createDocumentFragment();
+      for (var i = 0, ilen = builds.length; i < ilen; i++) {
+        var devices = builds[i];
+        for (var j = 0, jlen = devices.builds.length; j < jlen; j++) {
+          buildItems.appendChild(drawBuild(devices.builds[j], supportedDevice));
+        }
+      }
+      $('#devices')[0].appendChild(buildItems);
     } else {
-      $('#noDevice')[0].innerHTML = drawUnsupported(
+      supportedDevice = false;
+      $('#noDevice')[0].appendChild(drawBuild(
         {
           name: device.model || device.id,
           description: "No build is available for this device, but you can use a local blobfree distribution if that is available."
-        });
-      supportedDevice = false;
+        },
+        supportedDevice));
     }
 
     $('#deviceId')[0].textContent = deviceName;
@@ -1478,7 +1482,7 @@ function deviceDisconnected() {
 function done() {
   $('#confirmDialog')[0].style.display = 'none';
   currentStep('select');
-};
+}
 
 function showOffline(isOffline) {
   document.getElementById('offline').style.visibility =
@@ -1539,7 +1543,7 @@ function verifyGecko() {
                              buildID.slice(6,8),     // day
                              buildID.slice(8,10),    // hour
                              buildID.slice(10,12),   // min
-                             buildID.slice(12,14))   // ms
+                             buildID.slice(12,14));  // ms
 
     // Limiting to mozilla-central
     // Bug 1059081 landed on May 19th, 2015
@@ -1551,15 +1555,15 @@ function verifyGecko() {
     }
 
     let isLinuxOk  = Services.appinfo.OS === "Linux";
-    let isDarwinOk = Services.appinfo.OS === "Darwin"
-                     && Services.appinfo.XPCOMABI === "x86_64-gcc3";
+    let isDarwinOk = Services.appinfo.OS === "Darwin" &&
+                     Services.appinfo.XPCOMABI === "x86_64-gcc3";
     if (!isLinuxOk && !isDarwinOk) {
       console.debug("Only Linux and (Darwin x86-64) are supported");
       return reject(new Error("GECKO_UNSUPPORTED_OS_ARCH"));
     }
 
-    let isNightly = !Services.appinfo.isReleaseBuild
-                    && (Services.appinfo.platformVersion.match("a") !== null);
+    let isNightly = !Services.appinfo.isReleaseBuild &&
+                    (Services.appinfo.platformVersion.match("a") !== null);
     if (!isNightly) {
       return reject(new Error("GECKO_UNSUPPORTED_BUILD"));
     }
