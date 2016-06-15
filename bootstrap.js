@@ -38,7 +38,15 @@ function install(data, reason) {}
 
 function startup(data, reason) {
   for (var p in data) {
-    dump("data." + p + "=" + data[p] + "\n");
+    let value = null;
+
+    if (data[p] && data[p].toString) {
+      value = "=" + data[p].toString();
+    } else {
+      value = " can not be dumped as a string\n";
+    }
+
+    dump("data." + p + value + "\n");
   }
 
   let uri = registerAddonResourceHandler(data);
