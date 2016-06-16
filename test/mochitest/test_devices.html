@@ -63,7 +63,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=1235459
     return new Promise((resolve, reject) => {
       let devices = c.getElementById("devices");
       ok(devices, "has devices node");
-      is(devices.childNodes.length, 2, "two builds available");
+      is(devices.childElementCount, 2, "two builds available");
 
       let url, name, desc;
       url  = devices.getElementsByTagName("input")[0].value;

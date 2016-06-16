@@ -40,7 +40,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=1235459
   function assert_select_build(id, nbExpected, nameExpected, descExpected) {
     let devices = c.getElementById("devices");
     ok(devices, "has devices node");
-    is(devices.childNodes.length, nbExpected, "two builds available");
+    is(devices.childElementCount, nbExpected, "two builds available");
 
     let e = devices.getElementsByTagName("input")[id];
     ok(e, "has build id", id);
