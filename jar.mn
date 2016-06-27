@@ -1,10 +1,16 @@
 b2g-installer.jar:
 % content b2g-installer %content/
-  content/		(*.js)
-  content/		(*.css)
-  content/		(*.xhtml)
-  content/		(*.png)
-  content/Fira/		(Fira/*)
-% content/linux/	(linux/*)	abi=Linux_x86-gcc3
-% content/linux64/	(linux64/*)	abi=Linux_x86_64-gcc3
-% content/mac64/	(mac64/*)	abi=Darwin_x86_64-gcc3
+  content/main.js              (main.js)
+  content/about.js              (about.js)
+  content/imaging_tools.js      (imaging_tools.js)
+  content/subprocess.js         (subprocess.js)
+  content/              (*.css)
+  content/              (*.xhtml)
+  content/              (*.png)
+  content/Fira/         (Fira/*.css)
+  content/Fira/eot/     (Fira/eot/*)
+  content/Fira/ttf/     (Fira/ttf/*)
+  content/Fira/woff/    (Fira/woff/*)
+% content/linux/        (linux/*)	abi=Linux_x86-gcc3
+% content/linux64/      (linux64/*)	abi=Linux_x86_64-gcc3
+% content/mac64/        (mac64/*)	abi=Darwin_x86_64-gcc3

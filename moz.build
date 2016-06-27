@@ -30,6 +30,9 @@ if CONFIG['CPU_ARCH'] == 'x86_64':
             'mac64/install.rdf',
         ]
 
+if CONFIG['OS_TARGET'] == 'Darwin' or CONFIG['OS_TARGET'] == 'Linux':
+    FINAL_TARGET_FILES['chrome']['b2g-installer']['content'] += ['subprocess_worker_unix.js']
+
 DIRS += [
     'test',
     'tools/cpio',
