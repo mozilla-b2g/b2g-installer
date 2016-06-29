@@ -9,7 +9,6 @@
     <em:description>A module to flash B2G on a supported device</em:description>
     <em:version>@@ADDON_VERSION@@</em:version>
     <em:creator>Mozilla</em:creator>
-    <em:updateURL>@@UPDATE_URL@@</em:updateURL>
 
     <em:type>2</em:type>
 
@@ -21,7 +20,7 @@
       <Description>
         <em:id>{ec8030f7-c20a-464f-9b0e-13a3a9e97384}</em:id>
         <em:minVersion>44.0a1</em:minVersion>
-        <em:maxVersion>99.*</em:maxVersion>
+        <em:maxVersion>*</em:maxVersion>
       </Description>
     </em:targetApplication>
 
