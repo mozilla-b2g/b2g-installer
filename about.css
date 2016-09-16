@@ -2,7 +2,7 @@
 
 html {
   font-size: 16px;
-  font-family: Helvetica;
+  font-family: "Fira Sans";
 }
 
 body {
@@ -43,8 +43,12 @@ ul {
 }
 
 #title {
-  text-indent: -9999px;
-  background: url(Firefox_Installer_Title.png) no-repeat top center;
+    font-size: 45px;
+    font-weight: 300;
+}
+
+#title .os-name {
+    font-weight: 500;
 }
 
 #wrapper,
